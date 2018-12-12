@@ -39,6 +39,7 @@ class Rectangle(object):
                 if self.width >= 0:
                     self.width = newv
 
+
 # polygon class
 class Polygon(object):
 
@@ -96,20 +97,13 @@ class Polygon(object):
         pass
 
 
-
-
-
-
-
-
-
 if __name__ == '__main__':
     p = Polygon()
-    p.set_polygon([1,2,2,1], [4,5,6,7], 4)
+    p.set_polygon([1, 2, 2, 1], [4, 5, 6, 7], 4)
 
-    p.translate(1,2)
+    p.translate(1, 2)
     print(p.x_points)
     print(p.y_points)
 
-    print(min([1,2,3,4,-5]))
-    print(max([1,2,3,4,39,7,3000]))
+    print(min([1, 2, 3, 4, -5]))
+    print(max([1, 2, 3, 4, 39, 7, 3000]))
