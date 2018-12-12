@@ -21,8 +21,7 @@ class TestUtil(TestCase):
         self.assertEqual(polygon.y_points, [2, 3, 5])
 
     def test_poly_to_string(self):
-        polygon = Polygon()
-        polygon.set_polygon([1, 2, 4], [2, 3, 5], 3)
+        polygon = Polygon([1, 2, 4], [2, 3, 5], 3)
         res = "1,2;2,3;4,5"
         self.assertEqual(res, util.poly_to_string(polygon))
 
@@ -30,12 +29,9 @@ class TestUtil(TestCase):
         poly_file_name = "./resources/lineReco7.txt"
         # poly_file_name = "./resources/lineReco10_withError.txt"
         # poly_file_name = "./resources/lineEmpty.txt"
-        polygon1 = Polygon()
-        polygon2 = Polygon()
-        polygon3 = Polygon()
-        polygon1.set_polygon([29, 1321], [80, 88], 2)
-        polygon2.set_polygon([9, 506, 684, 1139], [215, 215, 199, 206], 3)
-        polygon3.set_polygon([32, 537, 621, 1322], [329, 340, 320, 331], 4)
+        polygon1 = Polygon([29, 1321], [80, 88], 2)
+        polygon2 = Polygon([9, 506, 684, 1139], [215, 215, 199, 206], 3)
+        polygon3 = Polygon([32, 537, 621, 1322], [329, 340, 320, 331], 4)
 
         p_list, error = util.get_polys_from_file(poly_file_name)
         if p_list is None and len(util.load_text_file(poly_file_name)) > 0:
