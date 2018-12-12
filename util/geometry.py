@@ -88,7 +88,7 @@ class Rectangle(object):
 class Polygon(object):
 
     def __init__(self):
-        self.n_points = []
+        self.n_points = 0
         self.x_points = []
         self.y_points = []
         self.bounds = Rectangle()  # rectangle type!!!
