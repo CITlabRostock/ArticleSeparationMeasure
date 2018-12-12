@@ -6,10 +6,10 @@ import sys
 class Rectangle(object):
 
     def __init__(self):
-        self.x = None
-        self.y = None
-        self.width = None
-        self.height = None
+        self.x = 0
+        self.y = 0
+        self.width = 0
+        self.height = 0
 
     def set_rectangle(self, x, y, width, height):
         """ set rectangle values """
@@ -87,31 +87,36 @@ class Rectangle(object):
 # polygon class
 class Polygon(object):
 
-    def __init__(self):
-        self.n_points = 0
-        self.x_points = []
-        self.y_points = []
-        self.bounds = Rectangle()  # rectangle type!!!
-        self.MIN_LENGTH = 4
+    def __init__(self, x_points=None, y_points=None, n_points=0):
 
-    def set_polygon(self, x_points, y_points, n_points):
-        """ set Polygon values """
+        if x_points is not None:
+            assert type(x_points) == list, "x_points have to be a list of ints"
+            assert all(type(x) == int for x in x_points), "x_points have to be a list of ints"
+            if n_points > len(x_points) or n_points > len(y_points):
+                raise Exception("Bounds Error: n_points > len(x_points) or n_points > len(y_points)")
+
+            self.x_points = x_points
+        else:
+            self.x_points = []
+
+        if y_points is not None:
+            assert type(y_points) == list, "y_points have to be a list of ints"
+            assert all(type(y) == int for y in y_points), "y_points have to be a list of ints"
+            if n_points > len(x_points) or n_points > len(y_points):
+                raise Exception("Bounds Error: n_points > len(x_points) or n_points > len(y_points)")
+
+            self.y_points = y_points
+        else:
+            self.y_points = []
 
         assert type(n_points) == int, "n_points have to be int"
-        assert type(x_points) == list, "x_points have to be a list of ints"
-        assert all(type(x) == int for x in x_points), "x_points have to be a list of ints"
-        assert type(y_points) == list, "y_points have to be a list of ints"
-        assert all(type(y) == int for y in y_points), "y_points have to be a list of ints"
-
-        if n_points > len(x_points) or n_points > len(y_points):
-            raise Exception("Bounds Error: n_points > len(x_points) or n_points > len(y_points)")
-
         if n_points < 0:
             raise Exception("Negative Size: n_points < 0")
 
-        self.n_points = n_points
-        self.x_points = x_points
-        self.y_points = y_points
+        self.n_points = 0
+        self.bounds = None  # rectangle type!!!
+
+        self.MIN_LENGTH = 4  # ???
 
     def translate(self, delta_X, delta_Y):
         """ translates the vertices of the Polygon by delta_X along the x axis and by delta_Y along the y axis """
@@ -123,8 +128,8 @@ class Polygon(object):
             self.x_points[i] += delta_X
             self.y_points[i] += delta_Y
 
-        # if self.bounds != None:
-        #     self.bounds.Translate(delta_X, delta_Y)
+        if self.bounds is not None:
+            self.bounds.translate(delta_X, delta_Y)
 
     def calculate_bounds(self):
         """ calculte the bounding box of the points """
@@ -167,8 +172,22 @@ class Polygon(object):
         self.y_points.append(y)
         self.n_points += 1
 
-        # if self.bounds != None:
-        #     self.update_bounds(x, y)
+        if self.bounds != None:
+            self.update_bounds(x, y)
+
+    def get_bounds(self):
+        return self.get_bounding_box
+
+    def get_bounding_box(self):
+        """ returns the bounds of the polygon """
+
+        if self.n_points == 0:
+            return Rectangle()
+
+        if self.bounds is None:
+            self.calculate_bounds()
+
+
 
 
 
@@ -188,7 +207,6 @@ if __name__ == '__main__':
 
     print(min([1,2,3,4,-5]))
     print(max([1,2,3,4,39,7,3000]))
-
 
     print(type(sys.maxint))
     print(type(-sys.maxint - 1))
