@@ -92,6 +92,9 @@ class Polygon(object):
 
         # self.bounds = rectangle??
 
+    def add_point(self, x, y):
+        pass
+
 
 
 
