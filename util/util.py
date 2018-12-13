@@ -2,7 +2,9 @@ from __future__ import print_function
 from __future__ import division
 
 from io import open
+import math
 from geometry import Polygon
+import linear_regression as lin_reg
 
 
 def load_text_file(filename):
@@ -170,3 +172,66 @@ def norm_des_dist(poly_list, des_dist):
 
     res = []
     pass
+
+
+def calc_reg_line_stats(poly):
+    """Return angle of baseline polygon ``poly`` and ...
+
+    :param poly: input polygon
+    :type poly: Polygon
+    :return: angle of baseline and ...
+    """
+    if poly.n_points <= 1:
+        return 0.0, 0.0
+
+    n = float("inf")
+    if poly.n_points > 2:
+        x_max = max(poly.x_points)
+        x_min = min(poly.x_points)
+
+        if x_max == x_min:
+            m = float("inf")
+        else:
+            calc_line = lin_reg.calc_line(poly.x_points, [-y for y in poly.y_points])
+            m, n = calc_line
+    else:
+        x1, x2 = poly.x_points
+        y1, y2 = [-y for y in poly.y_points]
+        if x1 == x2:
+            m = float("inf")
+        else:
+            m = (y2 - y1) / (x2 - x1)
+            n = y2 - m * x2
+
+    if m == float("inf"):
+        angle = math.pi / 2
+    else:
+        angle = math.atan(m)
+
+    if -math.pi / 2 < angle <= -math.pi / 4:
+        if poly.y_points[0] > poly.y_points[-1]:
+            angle += math.pi
+    if -math.pi / 4 < angle <= math.pi / 4:
+        if poly.x_points[0] > poly.x_points[-1]:
+            angle += math.pi
+    if math.pi / 4 < angle < math.pi / 2:
+        if poly.y_points[0] < poly.y_points[-1]:
+            angle += math.pi
+    if angle < 0:
+        angle += 2 * math.pi
+
+    return angle, n
+
+
+def calc_tols(poly_truth_norm, tick_dist, max_d, rel_tol):
+    """Calculate tolerance values for every GT baseline according to https://arxiv.org/pdf/1705.03311.pdf.
+
+    :param poly_truth_norm: groundtruth baseline polygons (normalized)
+    :param tick_dist:
+    :param max_d:
+    :param rel_tol:
+    :return:
+    """
+    tols = []
+    for poly in poly_truth_norm:
+        angle = calc_reg_line_stats(poly)[0]
