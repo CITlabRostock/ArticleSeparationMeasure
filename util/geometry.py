@@ -118,7 +118,7 @@ class Polygon(object):
         if n_points < 0:
             raise Exception("Negative Size: n_points < 0")
 
-        self.n_points = 0
+        self.n_points = n_points
         self.bounds = None  # rectangle type!!!
 
         self.MIN_LENGTH = 4  # ???
