@@ -4,7 +4,7 @@ import math
 
 from util.util import norm_poly_dists, calc_tols
 from util.measure import BaselineMeasure
-from util.geometry import Polygon, Rectangle
+from util.geometry import Polygon
 
 
 class BaselineMeasureEval(object):
@@ -63,7 +63,7 @@ class BaselineMeasureEval(object):
 
     def calc_precision(self, polys_truth, polys_reco):
         """
-        Calculates and returns precision values for given truth and reco polygon for all tolerances.
+        Calculates and returns precision values for given truth and reco polygons for all tolerances.
 
         :param polys_truth: list of TRUTH polygons
         :param polys_reco: list of RECO polygons
@@ -73,8 +73,6 @@ class BaselineMeasureEval(object):
         assert all([isinstance(poly, Polygon) for poly in polys_truth + polys_reco]), \
             "elements of polys_truth and polys_reco have to be Polygons"
 
-        # precisions [self.max_tols.shape[0], len(polys_reco)]
-
         # relative hits per tolerance value over all reco and truth polygons
         rel_hits = np.zeros([self.max_tols.shape[0], len(polys_reco), len(polys_truth)], dtype=np.float32)
         for i, poly_reco in enumerate(polys_reco):
@@ -82,28 +80,41 @@ class BaselineMeasureEval(object):
                 rel_hits[:, i, j] = self.count_rel_hits(poly_reco, poly_truth, self.truth_line_tols[j])
 
         # calculate alignment
-        # TODO
+        precision = np.zeros([self.max_tols.shape[0], len(polys_reco)], dtype=np.float32)
+        for i, hits_per_tol in enumerate(np.split(rel_hits, rel_hits.shape[0])):
+            while True:
+                # calculate indices for maximum alignment
+                max_idx_x, max_idx_y = np.unravel_index(np.argmax(hits_per_tol), hits_per_tol.shape)
+                # finish if all polys_reco have been aligned
+                if max_idx_x < 0:
+                    break
+                # set precision to max alignment
+                precision[i, max_idx_x] = hits_per_tol[max_idx_x, max_idx_y]
+                # set row and column to -1
+                hits_per_tol[max_idx_x, :] = -1.0
+                hits_per_tol[:, max_idx_y] = -1.0
 
-        precison = None
-        return precison
+        return precision
 
     def count_rel_hits(self, poly_to_count, poly_ref, tols):
         """
         Counts the relative hits per tolerance value over all points of the polygon and corresponding
         nearest points of the reference polygon.
 
-        :param poly_to_count: polygon to count over
-        :param poly_ref: reference polygon
+        :param poly_to_count: Polygon to count over
+        :param poly_ref: reference Polygon
         :param tols: vector of tolerances
         :return: vector of relative hits for every tolerance value
         """
         assert isinstance(poly_to_count, Polygon) and isinstance(poly_ref, Polygon),\
             "poly_to_count and poly_ref have to be Polygons"
+        assert type(tols) == np.ndarray, "tols has to be np.ndarray"
+        assert len(tols.shape) == 1, "tols has to be 1d vector"
+        assert tols.dtype == float, "tols has to be float"
 
         poly_to_count_bb = poly_to_count.get_bounding_box()
         poly_ref_bb = poly_ref.get_bounding_box()
         intersection = poly_to_count_bb.intersection(poly_ref_bb)
-
         rel_hits = np.zeros_like(tols)
 
         # Early stopping criterion
@@ -120,7 +131,73 @@ class BaselineMeasureEval(object):
                 min_dist = min(min_dist, math.fabs(point[0] - point_ref[0] + math.fabs(point[1] - point_ref[1])))
                 if min_dist <= tols[0]:
                     break
-            for j in range(tols.shape[0]):
+            for j in range(rel_hits.shape[0]):
+                tol = tols[j]
+                if min_dist <= tol:
+                    rel_hits[j] += 1
+                elif tol < min_dist < 3.0 * tol:
+                    rel_hits[j] += (3.0 * tol - min_dist) / (2.0 * tol)
+
+        rel_hits /= poly_to_count.n_points
+        return rel_hits
+
+    def calc_recall(self, polys_truth, polys_reco):
+        """
+        Calculates and returns recall values for given truth and reco polygons for all tolerances.
+
+        :param polys_truth: list of TRUTH polygons
+        :param polys_reco: list of RECO polygons
+        :return: recall values
+        """
+        assert type(polys_truth) == list and type(polys_reco) == list, "polys_truth and polys_reco have to be lists"
+        assert all([isinstance(poly, Polygon) for poly in polys_truth + polys_reco]), \
+            "elements of polys_truth and polys_reco have to be Polygons"
+
+        recall = np.zeros([self.max_tols.shape[0], len(polys_truth)], dtype=np.float32)
+        for i, poly_truth in enumerate(polys_truth):
+            recall[:, i] = self.count_rel_hits_list(poly_truth, polys_reco, self.truth_line_tols[i])
+
+        return recall
+
+    def count_rel_hits_list(self, poly_to_count, polys_ref, tols):
+        """
+
+        :param poly_to_count: Polygon to count over
+        :param polys_ref: list of reference Polygons
+        :param tols: vector of tolerances
+        :return:
+        """
+        assert isinstance(poly_to_count, Polygon), "poly_to_count has to be Polygon"
+        assert type(polys_ref) == list, "polys_ref has to be list"
+        assert all([isinstance(poly, Polygon) for poly in polys_ref]), "elements of polys_ref have to Polygons"
+        assert type(tols) == np.ndarray, "tols has to be np.ndarray"
+        assert len(tols.shape) == 1, "tols has to be 1d vector"
+        assert tols.dtype == float, "tols has to be float"
+
+        poly_to_count_bb = poly_to_count.get_bounding_box()
+        rel_hits = np.zeros_like(tols)
+
+        for i, point in enumerate(zip(poly_to_count.x_points, poly_to_count.y_points)):
+            match = False
+            min_dist = float("inf")
+            for poly_ref in polys_ref:
+                poly_ref_bb = poly_ref.get_bounding_box()
+                intersection = poly_to_count_bb.intersection(poly_ref_bb)
+                # Early stopping criterion
+                if min(intersection.width, intersection.height) < -3.0 * tols[-1]:
+                    continue
+                for point_ref in zip(poly_ref.x_points, poly_ref.y_points):
+                    # min_dist = min(min_dist, math.sqrt((point[0] - point_ref[0]) * (point[0] - point_ref[0]) +
+                    #                                    (point[1] - point_ref[1]) * (point[1] - point_ref[1])))
+                    min_dist = min(min_dist, math.fabs(point[0] - point_ref[0] + math.fabs(point[1] - point_ref[1])))
+                    if min_dist <= tols[0]:
+                        match = True
+                        break
+
+                if match:
+                    break
+
+            for j in range(rel_hits.shape[0]):
                 tol = tols[j]
                 if min_dist <= tol:
                     rel_hits[j] += 1
@@ -131,14 +208,8 @@ class BaselineMeasureEval(object):
         return rel_hits
 
 
+if __name__ == '__main__':
 
-    def calc_recall(self, polys_reco, polys_truth):
-        """
-        Calculates and returns recall values for given truth and reco polygon for all tolerances.
-
-        :param polys_truth: (normed) TRUTH polygon
-        :param polys_reco: (normed) RECO polygon
-        :return: recall values
-        """
-        recall = None
-        return recall
+    z = np.zeros([1, 2])
+    if type(z) == np.ndarray:
+        print("is np.ndarray")
