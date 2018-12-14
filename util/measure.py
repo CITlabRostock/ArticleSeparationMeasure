@@ -26,9 +26,12 @@ class BaselineMeasure(object):
 
     def add_per_dist_tol_tick_per_line_recall(self, per_dist_tol_tick_per_line_recall):
         """ #distTolTicks x #truthBaseLines matrix of recalls, stores results """
-        assert type(per_dist_tol_tick_per_line_recall) == np.ndarray
-        assert len(per_dist_tol_tick_per_line_recall.shape) == 2
-        assert per_dist_tol_tick_per_line_recall.dtype == float
+        assert type(per_dist_tol_tick_per_line_recall) == np.ndarray,\
+            "per_dist_tol_tick_per_line_recall has to be np.ndarray"
+        assert len(per_dist_tol_tick_per_line_recall.shape) == 2,\
+            "per_dist_tol_tick_per_line_recall has to be 2d"
+        assert per_dist_tol_tick_per_line_recall.dtype == float,\
+            "per_dist_tol_tick_per_line_recall has to be float"
 
         # page wise recall: per tol, per line
         self.result.page_wise_per_dist_tol_tick_per_line_recall.append(per_dist_tol_tick_per_line_recall)
@@ -47,9 +50,12 @@ class BaselineMeasure(object):
 
     def add_per_dist_tol_tick_per_line_precision(self, per_dist_tol_tick_per_line_precision):
         """ #distTolTicks x #recoBaseLines matrix of precisions, stores results"""
-        assert type(per_dist_tol_tick_per_line_precision) == np.ndarray
-        assert len(per_dist_tol_tick_per_line_precision.shape) == 2
-        assert per_dist_tol_tick_per_line_precision.dtype == float
+        assert type(per_dist_tol_tick_per_line_precision) == np.ndarray,\
+            "per_dist_tol_tick_per_line_precision has to be np.ndarray"
+        assert len(per_dist_tol_tick_per_line_precision.shape) == 2,\
+            "per_dist_tol_tick_per_line_precision has to be 2d matrix"
+        assert per_dist_tol_tick_per_line_precision.dtype == float,\
+            "per_dist_tol_tick_per_line_precision has to be float"
 
         # page wise precision: per tol, per line
         self.result.page_wise_per_dist_tol_tick_per_line_precision.append(per_dist_tol_tick_per_line_precision)
@@ -83,7 +89,8 @@ class BaselineMeasure(object):
         self.result.precision = avg_precision
 
     def get_page_wise_true_false_counts_hypo(self, threshold):
-        assert type(threshold) == float
+        assert type(threshold) == float, "threshold has to be float"
+
         true_false_positives = np.zeros([2, len(self.result.page_wise_per_dist_tol_tick_per_line_precision)])
 
         for i, per_dist_tol_tick_per_line_precision in enumerate(self.result.page_wise_per_dist_tol_tick_per_line_precision):
@@ -98,7 +105,8 @@ class BaselineMeasure(object):
         return true_false_positives
 
     def get_page_wise_true_false_counts_gt(self, threshold):
-        assert type(threshold) == float
+        assert type(threshold) == float, "threshold has to be float"
+
         true_false_negatives = np.zeros([2, len(self.result.page_wise_per_dist_tol_tick_per_line_recall)])
 
         for i, per_dist_tol_tick_per_line_recall in enumerate(self.result.page_wise_per_dist_tol_tick_per_line_recall):
@@ -113,8 +121,8 @@ class BaselineMeasure(object):
         return true_false_negatives
 
     def get_specific_page_true_false_constellation(self, page_num, threshold):
-        assert type(page_num) == int
-        assert type(threshold) == float
+        assert type(page_num) == int, "page_num has to be int"
+        assert type(threshold) == float, "threshold has to be float"
 
         per_dist_tol_tick_per_line_recall = self.result.page_wise_per_dist_tol_tick_per_line_recall[page_num]
         avg_per_line_recall = np.sum(per_dist_tol_tick_per_line_recall, axis=0)
