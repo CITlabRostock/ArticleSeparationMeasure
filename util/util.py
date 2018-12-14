@@ -83,6 +83,7 @@ def get_polys_from_file(poly_file_name):
     return res, False
 
 
+# TODO add documentation for norm_des_dist
 def norm_des_dist(poly_list, des_dist):
     """
 
@@ -94,4 +95,16 @@ def norm_des_dist(poly_list, des_dist):
     """
 
     res = []
-    pass
+    for poly in poly_list:
+        bb = poly.get_bounding_box()
+        if bb.width > 100000 or bb.height > 100000:
+            poly = Polygon([0], [0], 1)
+
+        poly_blow_up = blow_up(poly)
+        poly_thin_out = thin_out(poly_blow_up, des_dist)
+
+        # to calculate the bounding box "get_bounding_box" must be executed
+        poly_thin_out.get_bounding_box()
+        res.append(poly_thin_out)
+
+    return res
