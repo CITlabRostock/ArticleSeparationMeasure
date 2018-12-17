@@ -163,7 +163,7 @@ def thin_out(polygon, des_dist):
 
 
 # TODO add documentation for norm_des_dist
-def norm_des_dist(poly_list, des_dist):
+def norm_poly_dists(poly_list, des_dist):
     """
 
     :param poly_list: list of polygons
