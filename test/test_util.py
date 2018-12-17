@@ -1,6 +1,6 @@
 # coding=utf-8
 from unittest import TestCase
-from util import util
+from util import misc
 from util.geometry import Polygon
 
 
@@ -12,10 +12,10 @@ class TestUtil(TestCase):
                "32,329;537,340;621,320;1322,331", "1399,99;2342,98;2611,125",
                "1402,215;2259,206;2599,224", "1395,339;2228,321;2661,342"]
 
-        self.assertEqual(res, util.load_text_file(filename))
+        self.assertEqual(res, misc.load_text_file(filename))
 
     def test_parse_string(self):
-        polygon = util.parse_string("1,2;2,3;4,5")
+        polygon = misc.parse_string("1,2;2,3;4,5")
         self.assertEqual(polygon.n_points, 3)
         self.assertEqual(polygon.x_points, [1, 2, 4])
         self.assertEqual(polygon.y_points, [2, 3, 5])
@@ -23,7 +23,7 @@ class TestUtil(TestCase):
     def test_poly_to_string(self):
         polygon = Polygon([1, 2, 4], [2, 3, 5], 3)
         res = "1,2;2,3;4,5"
-        self.assertEqual(res, util.poly_to_string(polygon))
+        self.assertEqual(res, misc.poly_to_string(polygon))
 
     def test_get_polys_from_file(self):
         poly_file_name = "./resources/lineReco7.txt"
@@ -33,13 +33,13 @@ class TestUtil(TestCase):
         polygon2 = Polygon([9, 506, 684, 1139], [215, 215, 199, 206], 3)
         polygon3 = Polygon([32, 537, 621, 1322], [329, 340, 320, 331], 4)
 
-        p_list, error = util.get_polys_from_file(poly_file_name)
-        if p_list is None and len(util.load_text_file(poly_file_name)) > 0:
+        p_list, error = misc.get_polys_from_file(poly_file_name)
+        if p_list is None and len(misc.load_text_file(poly_file_name)) > 0:
             print("Skip page..")
             self.assertEqual(error, True)
             self.assertEqual(p_list, None)
             return
-        elif p_list is None and len(util.load_text_file(poly_file_name)) == 0:
+        elif p_list is None and len(misc.load_text_file(poly_file_name)) == 0:
             print("Empty text file..")
             self.assertEqual(error, False)
             self.assertEqual(p_list, None)
@@ -59,7 +59,7 @@ class TestUtil(TestCase):
 
     def test_blow_up(self):
         poly_in = Polygon([0, 3, 4, 5, 7, 5], [1, 3, 5, 3, 1, 0], 6)
-        poly_out = util.blow_up(poly_in)
+        poly_out = misc.blow_up(poly_in)
         res = Polygon([0, 1, 2, 3, 4, 4, 5, 5, 6, 7, 6, 5], [1, 2, 2, 3, 4, 5, 4, 3, 2, 1, 1, 0], 12)
 
         self.assertEqual(res.x_points, poly_out.x_points)
@@ -72,9 +72,9 @@ class TestUtil(TestCase):
         des_dist_2 = 2  # distance of 2
         des_dist_100 = 100  # just consider min points (=20)
 
-        poly1_1 = util.thin_out(poly_in1, des_dist_1)
-        poly1_2 = util.thin_out(poly_in1, des_dist_2)
-        poly1_100 = util.thin_out(poly_in1, des_dist_100)
+        poly1_1 = misc.thin_out(poly_in1, des_dist_1)
+        poly1_2 = misc.thin_out(poly_in1, des_dist_2)
+        poly1_100 = misc.thin_out(poly_in1, des_dist_100)
 
         for poly in [poly1_1, poly1_2, poly1_100]:
             self.assertEqual(poly_in1.x_points, poly.x_points)
@@ -85,9 +85,9 @@ class TestUtil(TestCase):
         for (x, y) in zip(range(60), range(60)):
             poly_in2.add_point(x, y)
 
-        poly2_1 = util.thin_out(poly_in2, des_dist_1)
-        poly2_2 = util.thin_out(poly_in2, des_dist_2)
-        poly2_100 = util.thin_out(poly_in2, des_dist_100)
+        poly2_1 = misc.thin_out(poly_in2, des_dist_1)
+        poly2_2 = misc.thin_out(poly_in2, des_dist_2)
+        poly2_100 = misc.thin_out(poly_in2, des_dist_100)
 
         self.assertEqual(poly_in2.x_points, poly2_1.x_points)
         self.assertEqual(poly_in2.y_points, poly2_1.y_points)

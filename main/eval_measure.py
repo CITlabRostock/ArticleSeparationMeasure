@@ -1,8 +1,9 @@
 from __future__ import print_function
 import numpy as np
 import math
+import os
 
-from util.util import norm_poly_dists, calc_tols
+from util.misc import norm_poly_dists, calc_tols
 from util.measure import BaselineMeasure
 from util.geometry import Polygon
 
@@ -26,7 +27,7 @@ class BaselineMeasureEval(object):
         self.rel_tol = rel_tol
         self.poly_tick_dist = poly_tick_dist
         self.truth_line_tols = None
-        self.result = BaselineMeasure()
+        self.measure = BaselineMeasure()
 
     def calc_measure_for_page_baseline_polys(self, polys_truth, polys_reco):
         """
@@ -57,8 +58,8 @@ class BaselineMeasureEval(object):
         recall = self.calc_recall(polys_truth_norm, polys_reco_norm)
 
         # add results
-        self.result.add_per_dist_tol_tick_per_line_precision(precision)
-        self.result.add_per_dist_tol_tick_per_line_recall(recall)
+        self.measure.add_per_dist_tol_tick_per_line_precision(precision)
+        self.measure.add_per_dist_tol_tick_per_line_recall(recall)
         self.truth_line_tols = None
 
     def calc_precision(self, polys_truth, polys_reco):
@@ -209,7 +210,7 @@ class BaselineMeasureEval(object):
 
 
 if __name__ == '__main__':
-
+    print(os.environ["PYTHONPATH"])
     z = np.zeros([1, 2])
     if type(z) == np.ndarray:
         print("is np.ndarray")
