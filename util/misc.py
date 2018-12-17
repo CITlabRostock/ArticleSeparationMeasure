@@ -339,7 +339,7 @@ def calc_tols(poly_truth_norm, tick_dist, max_d, rel_tol):
                     for x_b, y_b in zip(poly_b.x_points, poly_b.y_points):
                         p_b = [x_b, y_b]
                         if abs(get_in_dist(p_a, p_b, or_vec_x, or_vec_y)) <= 2 * tick_dist:
-                            dist = min(dist, abs(get_off_dist(p_a, p_c, or_vec_x, or_vec_y)))
+                            dist = min(dist, abs(get_off_dist(p_a, p_b, or_vec_x, or_vec_y)))
         if dist < max_d:
             tols[line_cnt] = dist
         else:
@@ -363,3 +363,18 @@ def calc_tols(poly_truth_norm, tick_dist, max_d, rel_tol):
             tols[i] *= rel_tol
 
     return tols
+
+
+def f_measure(precision, recall):
+    """
+    Computes the F1-score for given precision and recall values.
+
+    :param precision: float
+    :param recall: float
+    :return: F1-score (or 0.0 if both precision and recall are 0.0)
+    """
+    assert type(precision) == float and type(recall) == float, "precision and recall have to be floats"
+    if precision == 0 and recall == 0:
+        return 0.0
+    else:
+        return 2.0 * precision * recall / (precision + recall)

@@ -37,7 +37,7 @@ class BaselineMeasureEval(object):
         :param polys_truth: list of TRUTH polygons corresponding to a single page
         :param polys_reco: list of RECO polygons corresponding to a single page
         """
-        assert type(polys_truth) == list and type(polys_reco) == list, "polys_truth and polys_reco have to lists"
+        assert type(polys_truth) == list and type(polys_reco) == list, "polys_truth and polys_reco have to be lists"
         assert all([isinstance(poly, Polygon) for poly in polys_truth + polys_reco]), \
             "elements of polys_truth and polys_reco have to be Polygons"
 

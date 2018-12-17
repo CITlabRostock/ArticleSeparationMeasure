@@ -1,4 +1,5 @@
 from __future__ import print_function
+import datetime
 from argparse import ArgumentParser
 
 from main.eval_measure import BaselineMeasureEval
@@ -6,7 +7,7 @@ import util.misc as util
 
 
 if __name__ == '__main__':
-    # argument parser and usage
+    # Argument parser and usage
     usage_string = """%(prog)s <truth> <reco> [OPTIONS]
     You can add specific options via '--OPTION VALUE'
     This method calculates the baseline errors in a precision/recall manner.
@@ -19,7 +20,7 @@ if __name__ == '__main__':
     truth/reco-files in both lists has to be identical."""
     parser = ArgumentParser(usage=usage_string)
 
-    # command-line arguments
+    # Command-line arguments
     parser.add_argument('--truth', default='', type=str, metavar="STR",
                         help="truth-files in txt- or lst-format (see usage)")
     parser.add_argument('--reco', default='', type=str, metavar="STR",
@@ -38,14 +39,14 @@ if __name__ == '__main__':
     #                     help="only evaluate hypo polygons if they are (partly) contained in region polygons,"
     #                          " if they are available (default: %(default)s)")
 
-    # global flags
+    # Global flags
     flags = parser.parse_args()
 
-    if not flags.truth and flags.reco:
+    if not (flags.truth and flags.reco):
         print("No arguments given for <truth> or <reco>, exiting. See --help for usage.")
         exit(1)
 
-    # parse input to create truth and reco baseline polygon lists
+    # Parse input to create truth and reco baseline polygon lists
     list_truth = []
     list_reco = []
     if flags.truth.endswith(".txt"):
@@ -64,46 +65,111 @@ if __name__ == '__main__':
     if not (len(list_truth) == len(list_reco)):
         raise ValueError("Same reco- and truth-list length required.")
 
+    print("-----Baseline evaluation-----")
+    print("")
+    print("Evaluation performed on {}".format(datetime.datetime.now().strftime("%Y.%m.%d, %H:%M")))
+    print("Evaluation performed for GT: {}".format(flags.truth))
+    print("Evaluation performed for HYPO: {}".format(flags.reco))
+    print("Number of pages: {}".format(len(list_truth)))
+    print("")
+    print("Loading protocol:")
+
     poly_pages_truth = []
     poly_pages_reco = []
+
     num_poly_truth = 0
     num_poly_reco = 0
+    num_error_pages = 0
 
     for i in range(len(list_truth)):
-        # get truth polygons
+        truth_polys_from_file = None
+        reco_polys_from_file = None
+        # Get truth polygons
         try:
-            truth_polys_from_file, err = util.get_polys_from_file(list_truth[i])
-            if not err:
-                poly_pages_truth.append(truth_polys_from_file)
-            else:
-                print("Error loading: {}, skipping.".format(list_truth[i]))
+            truth_polys_from_file, error_truth = util.get_polys_from_file(list_truth[i])
         except IOError:
-            print("Error loading: {}, skipping.".format(list_truth[i]))
-        # get reco polygons
+            error_truth = True
+        # Get reco polygons
         try:
-            reco_polys_from_file, err = util.get_polys_from_file(list_reco[i])
-            if not err:
-                poly_pages_reco.append(reco_polys_from_file)
-            else:
-                print("Error loading: {}, skipping.".format(list_reco[i]))
+            reco_polys_from_file, error_reco = util.get_polys_from_file(list_reco[i])
         except IOError:
-            print("Error loading: {}, skipping.".format(list_reco[i]))
-        # count polys
-        if poly_pages_truth:
-            num_poly_truth += len(poly_pages_truth[i])
-        if poly_pages_reco:
-            num_poly_reco += len(poly_pages_reco[i])
+            error_reco = True
 
-    # create baseline measure evaluation
+        # Skip pages with errors in either truth or reco
+        if not (error_truth or error_reco):
+            if truth_polys_from_file is not None and reco_polys_from_file is not None:
+                poly_pages_truth.append(truth_polys_from_file)
+                poly_pages_reco.append(reco_polys_from_file)
+                # Count polys
+                num_poly_truth += len(truth_polys_from_file)
+                num_poly_reco += len(reco_polys_from_file)
+        else:
+            num_error_pages += 1
+            if error_truth:
+                print("  Error loading: {}, skipping.".format(list_truth[i]))
+            if error_reco:
+                print("  Error loading: {}, skipping.".format(list_reco[i]))
+            del list_truth[i]
+            del list_reco[i]
+            i -= 1
+
+    if num_error_pages == 0:
+        print("  Everything loaded without errors.")
+
+    print("")
+    print("{} out of {} GT-HYPO page pairs loaded without errors and used for evaluation.".format
+          (len(list_truth), len(list_truth) + num_error_pages))
+    print("Number of GT lines: {}".format(num_poly_truth))
+    print("Number of HYPO lines: {}".format(num_poly_reco))
+
+    # Create baseline measure evaluation
     bl_measure_eval = BaselineMeasureEval(flags.min_tol, flags.max_tol)
 
-    # evaluate measure for each page
+    # Evaluate measure for each page
     for polys_truth, polys_reco in zip(poly_pages_truth, poly_pages_reco):
         bl_measure_eval.calc_measure_for_page_baseline_polys(polys_truth, polys_reco)
 
-    # get the results
+    # Get the results
     bl_measure = bl_measure_eval.measure
 
+    # Pagewise evaluation
+    print("Pagewise evaluation:")
+    print("{:>10s},{:>10s},{:>10s},{:>30s},{:>30s}".format("P-value", "R-value", "F-value", "TruthFile", "HypoFile"))
+    for i in range(len(list_truth)):
+        page_recall = bl_measure.result.page_wise_recall[i]
+        page_precision = bl_measure.result.page_wise_precision[i]
+        page_f_value = util.f_measure(page_precision, page_recall)
+        print("{:>10.4f} {:>10.4f} {:>10.4f} {},{}".format
+              (page_recall, page_precision, page_f_value, list_truth[i], list_reco[i]))
+
+    # Final evaluation
+    print("")
+    print("---Final evaluation---")
+    print("")
+    print("Average (over pages) P-value: {}".format(bl_measure.result.precision))
+    print("Average (over pages) R-value: {}".format(bl_measure.result.recall))
+    print("Resultung F1-score: {}".format(util.f_measure(bl_measure.result.precision, bl_measure.result.recall)))
+    print("")
+
+    # Global tp, fp, fn, tn for given threshold
     if flags.threshold_tf > 0.0:
         page_wise_true_false_pos = bl_measure.get_page_wise_true_false_counts_hypo(flags.threshold_tf)
         page_wise_true_false_neg = bl_measure.get_page_wise_true_false_counts_gt(flags.threshold_tf)
+        true_pos = 0
+        false_pos = 0
+        true_neg = 0
+        false_neg = 0
+        for i in range(page_wise_true_false_pos.shape[1]):
+            true_pos += page_wise_true_false_pos[0, i]
+            false_pos += page_wise_true_false_pos[1, i]
+            true_neg += page_wise_true_false_neg[0, i]
+            false_neg += page_wise_true_false_neg[1, i]
+        print("Number of true hypothesis lines for average P-value threshold of {} is {}".format
+              (flags.threshold_tf, true_pos))
+        print("Number of false hypothesis lines for average P-value threshold of {} is {}".format
+              (flags.threshold_tf, false_pos))
+        print("Number of true groundtruth lines for average R-value threshold of {} is {}".format
+              (flags.threshold_tf, true_neg))
+        print("Number of false groundtruth lines for average R-value threshold of {} is {}".format
+              (flags.threshold_tf, false_neg))
+        print("")
