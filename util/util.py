@@ -1,10 +1,12 @@
-from __future__ import print_function
 from __future__ import division
+from __future__ import print_function
 
-from io import open
 import math
-from geometry import Polygon
+import numpy as np
+from io import open
+
 import linear_regression as lin_reg
+from geometry import Polygon, Rectangle
 
 
 def load_text_file(filename):
@@ -166,22 +168,22 @@ def norm_des_dist(poly_list, des_dist):
 
     :param poly_list: list of polygons
     :param des_dist:
-    :type poly_list: list
+    :type poly_list: list of Polygon
     :type des_dist: int
     :return: list of polygons
     """
 
     res = []
     for poly in poly_list:
-        bb = poly.get_bounding_box()
+        bb = poly.get_bounds()
         if bb.width > 100000 or bb.height > 100000:
             poly = Polygon([0], [0], 1)
 
         poly_blow_up = blow_up(poly)
         poly_thin_out = thin_out(poly_blow_up, des_dist)
 
-        # to calculate the bounding box "get_bounding_box" must be executed
-        poly_thin_out.get_bounding_box()
+        # to calculate the bounding box "get_bounds" must be executed
+        poly_thin_out.get_bounds()
         res.append(poly_thin_out)
 
     return res
@@ -236,15 +238,128 @@ def calc_reg_line_stats(poly):
     return angle, n
 
 
+def get_dist_fast(point, bb):
+    """Calculate the distance between a ``point`` and a bounding box ``bb`` by adding up the x- and y-distance.
+
+    :param point: a point given by [x, y]
+    :param bb: the bounding box of a baseline polygon
+    :type point: list of float
+    :type bb: Rectangle
+    :return: the distance of the point to the bounding box
+    """
+    dist = 0.0
+    if point[0] < bb.x:
+        dist += bb.x - point[0]
+    if point[0] > bb.x + bb.width:
+        dist += point[0] - bb.x - bb.width
+    if point[1] < bb.y:
+        dist += bb.y - point[1]
+    if point[1] > bb.y + bb.height:
+        dist += point[1] - bb.y - bb.height
+
+    return dist
+
+
+def get_in_dist(p1, p2, or_vec_x, or_vec_y):
+    """Calculate the inline distance of the points ``p1`` and ``p2`` according to the orientation vector with
+    x-coordinate ``or_vec_x`` and y-coordinate ``or_vec_y``.
+
+
+    :param p1: first point
+    :param p2: second point
+    :param or_vec_x: x-coordinate of the orientation vector
+    :param or_vec_y: y-coordinate of the orientation vector
+    :return: the inline distance of the points p1 and p2 according to the given orientation vector
+    """
+    diff_x = p1[0] - p2[0]
+    diff_y = -p1[1] + p2[1]
+
+    # Parallel component of (diff_x, diff_y) is lambda * (or_vec_x, or_vec_y) with lambda:
+    return diff_x * or_vec_x + diff_y * or_vec_y
+
+
+def get_off_dist(p1, p2, or_vec_x, or_vec_y):
+    """Calculate the offline distance of the points ``p1`` and ``p2`` according to the orientation vector with
+    x-coordinate ``or_vec_x`` and y-coordinate ``or_vec_y``.
+
+    :param p1: first point
+    :param p2: second point
+    :param or_vec_x: x-coordinate of the orientation vector
+    :param or_vec_y: y-coordinate of the orientation vector
+    :return: the offline distance of the points p1 and p2 according to the given orientation vector
+    """
+    diff_x = p1[0] - p2[0]
+    diff_y = -p1[1] + p2[1]
+
+    return diff_x * or_vec_y - diff_y * or_vec_x
+
+
+# TODO: Compare calculations with Tobis dissertation
 def calc_tols(poly_truth_norm, tick_dist, max_d, rel_tol):
     """Calculate tolerance values for every GT baseline according to https://arxiv.org/pdf/1705.03311.pdf.
 
     :param poly_truth_norm: groundtruth baseline polygons (normalized)
     :param tick_dist:
-    :param max_d:
-    :param rel_tol:
-    :return:
+    :param max_d: max distance ...
+    :param rel_tol: relative tolerance value (set to 0.25 by default)
+    :type poly_truth_norm: list of Polygon
+    :return: tolerance values of the GT baselines
     """
     tols = []
-    for poly in poly_truth_norm:
-        angle = calc_reg_line_stats(poly)[0]
+
+    line_cnt = 0
+    for poly_a in poly_truth_norm:
+        # Calculate the angle of the line representing the baseline polygon poly_a
+        angle = calc_reg_line_stats(poly_a)[0]
+        # Orientation vector (given by angle) of lenght 1
+        or_vec_x, or_vec_y = math.sin(angle), math.cos(angle)
+        dist = max_d
+        # first and last point of polygon
+        pt_a1 = [poly_a.x_points[0], poly_a.y_points[0]]
+        pt_a2 = [poly_a.x_points[-1], poly_a.y_points[-1]]
+
+        # iterate over pixels of the current GT baseline polygon
+        for x_a, y_a in zip(poly_a.x_points, poly_a.y_points):
+            p_a = [x_a, y_a]
+            # iterate over all other polygons (to calculate X_G)
+            for poly_b in poly_truth_norm:
+                if poly_b != poly_a:
+                    if get_dist_fast(p_a, poly_b.get_bounds()) > dist:
+                        continue
+                    pt_b1 = poly_b.x_points[0], poly_b.y_points[0]
+                    pt_b2 = poly_b.x_points[-1], poly_b.y_points[-1]
+                    in_dist1 = get_in_dist(pt_a1, pt_b1, or_vec_x, or_vec_y)
+                    in_dist2 = get_in_dist(pt_a1, pt_b2, or_vec_x, or_vec_y)
+                    in_dist3 = get_in_dist(pt_a2, pt_b1, or_vec_x, or_vec_y)
+                    in_dist4 = get_in_dist(pt_a2, pt_b2, or_vec_x, or_vec_y)
+                    if (in_dist1 < 0 and in_dist2 < 0 and in_dist3 < 0 and in_dist4 < 0) or (
+                            in_dist1 > 0 and in_dist2 > 0 and in_dist3 > 0 and in_dist4 > 0):
+                        continue
+
+                    for x_b, y_b in zip(poly_b.x_points, poly_b.y_points):
+                        p_b = [x_b, y_b]
+                        if abs(get_in_dist(p_a, p_b, or_vec_x, or_vec_y)) <= 2 * tick_dist:
+                            dist = min(dist, abs(get_off_dist(p_a, p_c, or_vec_x, or_vec_y)))
+        if dist < max_d:
+            tols[line_cnt] = dist
+        else:
+            tols[line_cnt] = 0
+        line_cnt += 1
+
+    sum_val = 0.0
+    cnt = 0
+    for tol in tols:
+        if tol != 0:
+            sum_val += tol
+            cnt += 1
+
+    mean_val = max_d
+    if cnt != 0:
+        mean_val = sum_val / cnt
+
+    for i, tol in enumerate(tols):
+        if tol == 0:
+            tols[i] = min(tol, mean_val)
+            tols[i] *= rel_tol
+
+    return tols
