@@ -207,8 +207,7 @@ def calc_reg_line_stats(poly):
         if x_max == x_min:
             m = float("inf")
         else:
-            calc_line = lin_reg.calc_line(poly.x_points, [-y for y in poly.y_points])
-            m, n = calc_line
+            m, n = lin_reg.calc_line(poly.x_points, [-y for y in poly.y_points])
     else:
         x1, x2 = poly.x_points
         y1, y2 = [-y for y in poly.y_points]
