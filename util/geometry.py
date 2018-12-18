@@ -267,7 +267,7 @@ class Polygon(object):
         if self.bounds is not None:
             self.update_bounds(x, y)
 
-    def get_bounds(self):
+    def get_bounding_box(self):
         """ gets the bounding box of this polygon (= smallest rectangle including this polygon)
 
         :return: (Rectangle) rectangle defining the bounds of this polygon

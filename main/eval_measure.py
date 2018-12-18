@@ -75,19 +75,20 @@ class BaselineMeasureEval(object):
             "elements of polys_truth and polys_reco have to be Polygons"
 
         # relative hits per tolerance value over all reco and truth polygons
-        rel_hits = np.zeros([self.max_tols.shape[0], len(polys_reco), len(polys_truth)], dtype=np.float32)
+        rel_hits = np.zeros([self.max_tols.shape[0], len(polys_reco), len(polys_truth)])
         for i, poly_reco in enumerate(polys_reco):
             for j, poly_truth in enumerate(polys_truth):
                 rel_hits[:, i, j] = self.count_rel_hits(poly_reco, poly_truth, self.truth_line_tols[j])
 
         # calculate alignment
-        precision = np.zeros([self.max_tols.shape[0], len(polys_reco)], dtype=np.float32)
+        precision = np.zeros([self.max_tols.shape[0], len(polys_reco)])
         for i, hits_per_tol in enumerate(np.split(rel_hits, rel_hits.shape[0])):
+            hits_per_tol = np.squeeze(hits_per_tol, 0)
             while True:
                 # calculate indices for maximum alignment
                 max_idx_x, max_idx_y = np.unravel_index(np.argmax(hits_per_tol), hits_per_tol.shape)
                 # finish if all polys_reco have been aligned
-                if max_idx_x < 0:
+                if hits_per_tol[max_idx_x, max_idx_y] < 0:
                     break
                 # set precision to max alignment
                 precision[i, max_idx_x] = hits_per_tol[max_idx_x, max_idx_y]
@@ -154,7 +155,7 @@ class BaselineMeasureEval(object):
         assert all([isinstance(poly, Polygon) for poly in polys_truth + polys_reco]), \
             "elements of polys_truth and polys_reco have to be Polygons"
 
-        recall = np.zeros([self.max_tols.shape[0], len(polys_truth)], dtype=np.float32)
+        recall = np.zeros([self.max_tols.shape[0], len(polys_truth)])
         for i, poly_truth in enumerate(polys_truth):
             recall[:, i] = self.count_rel_hits_list(poly_truth, polys_reco, self.truth_line_tols[i])
 

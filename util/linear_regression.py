@@ -1,5 +1,6 @@
 from __future__ import print_function
 import numpy as np
+import math
 
 
 def calc_line(x_points, y_points):
@@ -20,15 +21,13 @@ def calc_line(x_points, y_points):
         px = x_points[i]
         a[i, 0] = 1.0
         a[i, 1] = px
+
         min_x = min(px, min_x)
         max_x = max(px, max_x)
         sum_x += px
-
     if max_x - min_x < 2:
         print("TODO")
 
-    print("A = \n", a)
-    print("Y = \n", y)
     return solve_lin(a, y)
 
 
@@ -58,10 +57,14 @@ def solve_lin(a, y):
 
 
 if __name__ == '__main__':
-    # (1,30) (10,30) (25, 28) (60,32)
-    x_points = [1, 10, 25, 60]
-    y_points = [30, 30, 28, 32]
+    # (1,30) (10,25) (25, 22) (60,36)
+    # x_points = [1, 10, 25, 60]
+    # y_points = [30, 25, 22, 36]
+
+    # (1,10) (2, 20) (3,15)
+    x_points = [1, 2, 3]
+    y_points = [10, 20, 15]
 
     res = calc_line(x_points, y_points)
 
-    print("res = \n", res)
+    print("res = \n", res, math.atan(res[0]))

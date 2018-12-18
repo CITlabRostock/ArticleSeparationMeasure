@@ -175,7 +175,7 @@ def norm_poly_dists(poly_list, des_dist):
 
     res = []
     for poly in poly_list:
-        bb = poly.get_bounds()
+        bb = poly.get_bounding_box()
         if bb.width > 100000 or bb.height > 100000:
             poly = Polygon([0], [0], 1)
 
@@ -183,7 +183,7 @@ def norm_poly_dists(poly_list, des_dist):
         poly_thin_out = thin_out(poly_blow_up, des_dist)
 
         # to calculate the bounding box "get_bounds" must be executed
-        poly_thin_out.get_bounds()
+        poly_thin_out.get_bounding_box()
         res.append(poly_thin_out)
 
     return res
@@ -306,8 +306,6 @@ def calc_tols(poly_truth_norm, tick_dist, max_d, rel_tol):
     :return: tolerance values of the GT baselines
     """
     tols = []
-
-    line_cnt = 0
     for poly_a in poly_truth_norm:
         # Calculate the angle of the line representing the baseline polygon poly_a
         angle = calc_reg_line_stats(poly_a)[0]
@@ -324,7 +322,7 @@ def calc_tols(poly_truth_norm, tick_dist, max_d, rel_tol):
             # iterate over all other polygons (to calculate X_G)
             for poly_b in poly_truth_norm:
                 if poly_b != poly_a:
-                    if get_dist_fast(p_a, poly_b.get_bounds()) > dist:
+                    if get_dist_fast(p_a, poly_b.get_bounding_box()) > dist:
                         continue
                     pt_b1 = poly_b.x_points[0], poly_b.y_points[0]
                     pt_b2 = poly_b.x_points[-1], poly_b.y_points[-1]
@@ -336,15 +334,13 @@ def calc_tols(poly_truth_norm, tick_dist, max_d, rel_tol):
                             in_dist1 > 0 and in_dist2 > 0 and in_dist3 > 0 and in_dist4 > 0):
                         continue
 
-                    for x_b, y_b in zip(poly_b.x_points, poly_b.y_points):
-                        p_b = [x_b, y_b]
+                    for p_b in zip(poly_b.x_points, poly_b.y_points):
                         if abs(get_in_dist(p_a, p_b, or_vec_x, or_vec_y)) <= 2 * tick_dist:
                             dist = min(dist, abs(get_off_dist(p_a, p_b, or_vec_x, or_vec_y)))
         if dist < max_d:
-            tols[line_cnt] = dist
+            tols.append(dist)
         else:
-            tols[line_cnt] = 0
-        line_cnt += 1
+            tols.append(0)
 
     sum_val = 0.0
     cnt = 0
@@ -373,7 +369,7 @@ def f_measure(precision, recall):
     :param recall: float
     :return: F1-score (or 0.0 if both precision and recall are 0.0)
     """
-    assert type(precision) == float and type(recall) == float, "precision and recall have to be floats"
+    assert precision.dtype == float and recall.dtype == float, "precision and recall have to be floats"
     if precision == 0 and recall == 0:
         return 0.0
     else:

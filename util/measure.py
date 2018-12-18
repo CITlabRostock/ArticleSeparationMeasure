@@ -3,26 +3,21 @@ import numpy as np
 from collections import namedtuple
 
 
-BaselineMeasureResult = namedtuple("BaselineMeasureResult", ["page_wise_per_dist_tol_tick_per_line_recall",
-                                                             "page_wise_per_dist_tol_tick_recall",
-                                                             "page_wise_recall",
-                                                             "recall",
-                                                             "page_wise_per_dist_tol_tick_per_line_precision",
-                                                             "page_wise_per_dist_tol_tick_precision",
-                                                             "page_wise_precision",
-                                                             "precision"])
+class BaselineMeasureResult(object):
+    def __init__(self):
+        self.page_wise_per_dist_tol_tick_per_line_recall = []
+        self.page_wise_per_dist_tol_tick_recall = []
+        self.page_wise_recall = []
+        self.recall = 0.0
+        self.page_wise_per_dist_tol_tick_per_line_precision = []
+        self.page_wise_per_dist_tol_tick_precision = []
+        self.page_wise_precision = []
+        self.precision = []
 
 
 class BaselineMeasure(object):
     def __init__(self):
-        self.result = BaselineMeasureResult(page_wise_per_dist_tol_tick_per_line_recall=[],
-                                            page_wise_per_dist_tol_tick_recall=[],
-                                            page_wise_recall=[],
-                                            recall=0.0,
-                                            page_wise_per_dist_tol_tick_per_line_precision=[],
-                                            page_wise_per_dist_tol_tick_precision=[],
-                                            page_wise_precision=[],
-                                            precision=0.0)
+        self.result = BaselineMeasureResult()
 
     def add_per_dist_tol_tick_per_line_recall(self, per_dist_tol_tick_per_line_recall):
         """ #distTolTicks x #truthBaseLines matrix of recalls, stores results """
