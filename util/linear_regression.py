@@ -27,7 +27,7 @@ def calc_line(x_points, y_points):
         max_x = max(px, max_x)
         sum_x += px
     if max_x - min_x < 2:
-        return float("inf"), sum_x / len(x_points)
+        return sum_x / len(x_points), float("inf")
 
     return solve_lin(a, y)
 
@@ -44,7 +44,7 @@ def solve_lin(a, y):
     det = ls[0, 0] * ls[1, 1] - ls[0, 1] * ls[1, 0]
     if det < 1e-9:
         print("LinearRegression Error: Numerically unstable.")
-        return float("inf"), a[0, 1]
+        return a[0, 1], float("inf")
     else:
         d = 1.0 / det
         inv = np.empty_like(ls)
