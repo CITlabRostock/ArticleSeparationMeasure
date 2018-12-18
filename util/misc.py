@@ -207,7 +207,7 @@ def calc_reg_line_stats(poly):
         if x_max == x_min:
             m = float("inf")
         else:
-            m, n = lin_reg.calc_line(poly.x_points, [-y for y in poly.y_points])
+            n, m = lin_reg.calc_line(poly.x_points, [-y for y in poly.y_points])
     else:
         x1, x2 = poly.x_points
         y1, y2 = [-y for y in poly.y_points]
@@ -296,23 +296,23 @@ def get_off_dist(p1, p2, or_vec_x, or_vec_y):
 
 
 # TODO: Compare calculations with Tobis dissertation
-def calc_tols(poly_truth_norm, tick_dist=5, max_d=250, rel_tol=0.25):
+def calc_tols(polys_truth, tick_dist=5, max_d=250, rel_tol=0.25):
     """Calculate tolerance values for every GT baseline according to https://arxiv.org/pdf/1705.03311.pdf.
 
-    :param poly_truth_norm: groundtruth baseline polygons (normalized)
+    :param polys_truth: groundtruth baseline polygons (normalized)
     :param tick_dist: desired distance of points of the baseline polygon (default: 5)
     :param max_d: max distance of pixels of a baseline polygon to any other baseline polygon (distance in terms of the
     x- and y-distance of the point to a bounding box of another polygon - see get_dist_fast) (default: 250)
     :param rel_tol: relative tolerance value (default: 0.25)
-    :type poly_truth_norm: list of Polygon
+    :type polys_truth: list of Polygon
     :return: tolerance values of the GT baselines
     """
     tols = []
-    for poly_a in poly_truth_norm:
+    for poly_a in polys_truth:
         # Calculate the angle of the linear regression line representing the baseline polygon poly_a
         angle = calc_reg_line_stats(poly_a)[0]
         # Orientation vector (given by angle) of length 1
-        or_vec_x, or_vec_y = math.sin(angle), math.cos(angle)
+        or_vec_y, or_vec_x = math.sin(angle), math.cos(angle)
         dist = max_d
         # first and last point of polygon
         pt_a1 = [poly_a.x_points[0], poly_a.y_points[0]]
@@ -322,7 +322,7 @@ def calc_tols(poly_truth_norm, tick_dist=5, max_d=250, rel_tol=0.25):
         for x_a, y_a in zip(poly_a.x_points, poly_a.y_points):
             p_a = [x_a, y_a]
             # iterate over all other polygons (to calculate X_G)
-            for poly_b in poly_truth_norm:
+            for poly_b in polys_truth:
                 if poly_b != poly_a:
                     # if polygon poly_b is too far away from pixel p_a, skip
                     if get_dist_fast(p_a, poly_b.get_bounding_box()) > dist:
