@@ -2,7 +2,6 @@ from __future__ import division
 from __future__ import print_function
 
 import math
-import numpy as np
 from io import open
 
 import linear_regression as lin_reg
@@ -71,8 +70,8 @@ def get_polys_from_file(poly_file_name):
 
     :param poly_file_name: path to the txt file holding the polygons (one polygon per line)
     :type poly_file_name: str
-    :return: a tuple containing the list of polygons and a boolean value representing if the polygons are loaded with
-    errors
+    :return: a tuple containing the list of polygons (None if errors occur or no polygons are found) and a boolean value
+    representing if the polygons are loaded with errors
     """
 
     # TODO: Bool return value necessary? -> Just check if returned list is None (then you know if it was skipped or not)
@@ -164,10 +163,11 @@ def thin_out(polygon, des_dist):
 
 # TODO add documentation for norm_des_dist
 def norm_poly_dists(poly_list, des_dist):
-    """
+    """For a given list of polygons ``poly_list`` calculate the corresponding normed polygons, s.t. every polygon has
+    adjacent pixels with a distance of ~des_dist.
 
     :param poly_list: list of polygons
-    :param des_dist:
+    :param des_dist: distance (measured in pixels) of two adjecent pixels in the destination polygon
     :type poly_list: list of Polygon
     :type des_dist: int
     :return: list of polygons
@@ -190,11 +190,11 @@ def norm_poly_dists(poly_list, des_dist):
 
 
 def calc_reg_line_stats(poly):
-    """Return angle of baseline polygon ``poly`` and ...
+    """Return the angle of baseline polygon ``poly`` and the intersection of the linear regression line with the y-axis.
 
     :param poly: input polygon
     :type poly: Polygon
-    :return: angle of baseline and ...
+    :return: angle of baseline and intersection of the linear regression line with the y-axis.
     """
     if poly.n_points <= 1:
         return 0.0, 0.0
@@ -223,6 +223,7 @@ def calc_reg_line_stats(poly):
     else:
         angle = math.atan(m)
 
+    # in special cases change the direction of the orientation (-> add pi to angle)
     if -math.pi / 2 < angle <= -math.pi / 4:
         if poly.y_points[0] > poly.y_points[-1]:
             angle += math.pi
@@ -232,6 +233,7 @@ def calc_reg_line_stats(poly):
     if math.pi / 4 < angle < math.pi / 2:
         if poly.y_points[0] < poly.y_points[-1]:
             angle += math.pi
+    # Make sure that the angle is positive
     if angle < 0:
         angle += 2 * math.pi
 
@@ -295,21 +297,22 @@ def get_off_dist(p1, p2, or_vec_x, or_vec_y):
 
 
 # TODO: Compare calculations with Tobis dissertation
-def calc_tols(poly_truth_norm, tick_dist, max_d, rel_tol):
+def calc_tols(poly_truth_norm, tick_dist=5, max_d=250, rel_tol=0.25):
     """Calculate tolerance values for every GT baseline according to https://arxiv.org/pdf/1705.03311.pdf.
 
     :param poly_truth_norm: groundtruth baseline polygons (normalized)
-    :param tick_dist:
-    :param max_d: max distance ...
-    :param rel_tol: relative tolerance value (set to 0.25 by default)
+    :param tick_dist: desired distance of points of the baseline polygon (default: 5)
+    :param max_d: max distance of pixels of a baseline polygon to any other baseline polygon (distance in terms of the
+    x- and y-distance of the point to a bounding box of another polygon - see get_dist_fast) (default: 250)
+    :param rel_tol: relative tolerance value (default: 0.25)
     :type poly_truth_norm: list of Polygon
     :return: tolerance values of the GT baselines
     """
     tols = []
     for poly_a in poly_truth_norm:
-        # Calculate the angle of the line representing the baseline polygon poly_a
+        # Calculate the angle of the linear regression line representing the baseline polygon poly_a
         angle = calc_reg_line_stats(poly_a)[0]
-        # Orientation vector (given by angle) of lenght 1
+        # Orientation vector (given by angle) of length 1
         or_vec_x, or_vec_y = math.sin(angle), math.cos(angle)
         dist = max_d
         # first and last point of polygon
@@ -322,10 +325,15 @@ def calc_tols(poly_truth_norm, tick_dist, max_d, rel_tol):
             # iterate over all other polygons (to calculate X_G)
             for poly_b in poly_truth_norm:
                 if poly_b != poly_a:
+                    # if polygon poly_b is too far away from pixel p_a, skip
                     if get_dist_fast(p_a, poly_b.get_bounding_box()) > dist:
                         continue
+
+                    # get first and last pixel of baseline polygon poly_b
                     pt_b1 = poly_b.x_points[0], poly_b.y_points[0]
                     pt_b2 = poly_b.x_points[-1], poly_b.y_points[-1]
+
+                    # calculate the inline distance of the points
                     in_dist1 = get_in_dist(pt_a1, pt_b1, or_vec_x, or_vec_y)
                     in_dist2 = get_in_dist(pt_a1, pt_b2, or_vec_x, or_vec_y)
                     in_dist3 = get_in_dist(pt_a2, pt_b1, or_vec_x, or_vec_y)

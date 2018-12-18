@@ -1,6 +1,5 @@
 from __future__ import print_function
 import numpy as np
-import math
 
 
 def calc_line(x_points, y_points):
@@ -67,4 +66,4 @@ if __name__ == '__main__':
 
     res = calc_line(x_points, y_points)
 
-    print("res = \n", res, math.atan(res[0]))
+    print("res = \n", res)
