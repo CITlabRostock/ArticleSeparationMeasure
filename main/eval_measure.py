@@ -130,7 +130,7 @@ class BaselineMeasureEval(object):
             for point_ref in zip(poly_ref.x_points, poly_ref.y_points):
                 # min_dist = min(min_dist, math.sqrt((point[0] - point_ref[0]) * (point[0] - point_ref[0]) +
                 #                                    (point[1] - point_ref[1]) * (point[1] - point_ref[1])))
-                min_dist = min(min_dist, math.fabs(point[0] - point_ref[0] + math.fabs(point[1] - point_ref[1])))
+                min_dist = min(min_dist, math.fabs(point[0] - point_ref[0]) + math.fabs(point[1] - point_ref[1]))
                 if min_dist <= tols[0]:
                     break
             for j in range(rel_hits.shape[0]):
@@ -191,7 +191,7 @@ class BaselineMeasureEval(object):
                 for point_ref in zip(poly_ref.x_points, poly_ref.y_points):
                     # min_dist = min(min_dist, math.sqrt((point[0] - point_ref[0]) * (point[0] - point_ref[0]) +
                     #                                    (point[1] - point_ref[1]) * (point[1] - point_ref[1])))
-                    min_dist = min(min_dist, math.fabs(point[0] - point_ref[0] + math.fabs(point[1] - point_ref[1])))
+                    min_dist = min(min_dist, math.fabs(point[0] - point_ref[0]) + math.fabs(point[1] - point_ref[1]))
                     if min_dist <= tols[0]:
                         match = True
                         break

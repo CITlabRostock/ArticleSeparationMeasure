@@ -100,21 +100,22 @@ def run_eval(truth_file, reco_file, min_tol, max_tol, threshold_tf):
     # Pagewise evaluation
     print("")
     print("Pagewise evaluation:")
-    print("{:>10s},{:>10s},{:>10s},{:>30s},{:>30s}".format("P-value", "R-value", "F-value", "TruthFile", "HypoFile"))
+    print("{:>10s} {:>10s} {:>10s}  {:^30s}  {:^30s}".format("P-value", "R-value", "F-value", "TruthFile", "HypoFile"))
+    print("-" * (10+1+10+1+10+2+30+2+30))
     for i in range(len(list_truth_fixed)):
-        page_recall = bl_measure.result.page_wise_recall[i]
         page_precision = bl_measure.result.page_wise_precision[i]
+        page_recall = bl_measure.result.page_wise_recall[i]
         page_f_value = util.f_measure(page_precision, page_recall)
-        print("{:>10.4f} {:>10.4f} {:>10.4f} {},{}".format
-              (page_recall, page_precision, page_f_value, list_truth_fixed[i], list_reco_fixed[i]))
+        print("{:>10.4f} {:>10.4f} {:>10.4f}  {}  {}".format
+              (page_precision, page_recall, page_f_value, list_truth_fixed[i], list_reco_fixed[i]))
 
     # Final evaluation
     print("")
     print("---Final evaluation---")
     print("")
-    print("Average (over pages) P-value: {}".format(bl_measure.result.precision))
-    print("Average (over pages) R-value: {}".format(bl_measure.result.recall))
-    print("Resultung F1-score: {}".format(util.f_measure(bl_measure.result.precision, bl_measure.result.recall)))
+    print("Average (over pages) P-value: {:.4f}".format(bl_measure.result.precision))
+    print("Average (over pages) R-value: {:.4f}".format(bl_measure.result.recall))
+    print("Resultung F1-score: {:.4f}".format(util.f_measure(bl_measure.result.precision, bl_measure.result.recall)))
     print("")
 
     # Global tp, fp, fn, tn for given threshold

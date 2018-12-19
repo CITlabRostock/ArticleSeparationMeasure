@@ -349,21 +349,22 @@ def calc_tols(polys_truth, tick_dist=5, max_d=250, rel_tol=0.25):
         else:
             tols.append(0)
 
-    sum_val = 0.0
-    cnt = 0
+    sum_tols = 0.0
+    num_tols = 0
     for tol in tols:
         if tol != 0:
-            sum_val += tol
-            cnt += 1
+            sum_tols += tol
+            num_tols += 1
 
-    mean_val = max_d
-    if cnt != 0:
-        mean_val = sum_val / cnt
+    mean_tols = max_d
+    if num_tols:
+        mean_tols = sum_tols / num_tols
 
     for i, tol in enumerate(tols):
         if tol == 0:
-            tols[i] = min(tol, mean_val)
-            tols[i] *= rel_tol
+            tols[i] = mean_tols
+        tols[i] = min(tol, mean_tols)
+        tols[i] *= rel_tol
 
     return tols
 
