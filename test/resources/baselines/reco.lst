@@ -1,0 +1,10 @@
+test/resources/baselines/lineReco1.txt
+test/resources/baselines/lineReco2.txt
+test/resources/baselines/lineReco3.txt
+test/resources/baselines/lineReco4.txt
+test/resources/baselines/lineReco5.txt
+test/resources/baselines/lineReco6.txt
+test/resources/baselines/lineReco7.txt
+test/resources/baselines/lineReco8.txt
+test/resources/baselines/lineReco9.txt
+test/resources/baselines/lineReco10_withError.txt

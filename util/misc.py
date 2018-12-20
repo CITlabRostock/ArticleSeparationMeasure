@@ -19,7 +19,9 @@ def load_text_file(filename):
     res = []
     with open(filename, 'r') as f:
         for line in f:
-            if not line.isspace():
+            if line == "\n":
+                res.append(line)
+            else:
                 res.append(line.strip())
         return res
 
@@ -63,15 +65,13 @@ def poly_to_string(polygon):
     return res
 
 
-# get_polys_from_page_file not necessary since we're only handling strings which are produced from Java routines
-
 def get_polys_from_file(poly_file_name):
-    """Load polygons from a text file ``poly_file_name`` and save them as ``Polygon`` objects in a list.
+    """Load polygons from a text file `poly_file_name` and save them as `Polygon` objects in a list.
 
     :param poly_file_name: path to the txt file holding the polygons (one polygon per line)
     :type poly_file_name: str
-    :return: a tuple containing the list of polygons (None if errors occur or no polygons are found) and a boolean value
-    representing if the polygons are loaded with errors
+    :return: a tuple containing a list of polygons (None if errors occur or no polygons are found) and a boolean value
+    representing if the polygons loaded with errors
     """
 
     # TODO: Bool return value necessary? -> Just check if returned list is None (then you know if it was skipped or not)
@@ -86,6 +86,39 @@ def get_polys_from_file(poly_file_name):
             res.append(poly)
         except ValueError:
             return None, True
+    return res, False
+
+
+def get_article_polys_from_file(poly_file_name):
+    """Load polygons from a text file `poly_file_name`, split them up into articles (marked by empty lines) and
+    save them as `Polygon` objects.
+
+    :param poly_file_name: path to the txt file holding the polygons (one polygon per line, empty line indicates
+    end of article)
+    :type poly_file_name: str
+    :return: a tuple containing a list of lists of polygons, where each sublist corresponds to an article (None if
+    errors occur or no polygons are found) and a boolean value representing if the polygons loaded without errors
+    """
+
+    # TODO: Bool return value necessary? -> Just check if returned list is None (then you know if it was skipped or not)
+    poly_strings = load_text_file(poly_file_name)
+    if len(poly_strings) == 0:
+        return None, False
+    poly_strings.append("\n")
+
+    res = []
+    article_polys = []
+    for poly_string in poly_strings:
+        if poly_string == "\n":
+            res.append(article_polys)
+            article_polys = []
+        else:
+            try:
+                poly = parse_string(str(poly_string))
+                article_polys.append(poly)
+            except ValueError:
+                return None, True
+
     return res, False
 
 
@@ -382,3 +415,10 @@ def f_measure(precision, recall):
         return 0.0
     else:
         return 2.0 * precision * recall / (precision + recall)
+
+
+if __name__ == '__main__':
+    res, err = get_article_polys_from_file("test/resources/articles/pageReco2.txt")
+    print(err)
+    for r in res:
+        print(r)

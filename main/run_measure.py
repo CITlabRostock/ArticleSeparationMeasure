@@ -53,7 +53,7 @@ def run_eval(truth_file, reco_file, min_tol, max_tol, threshold_tf):
         reco_polys_from_file = None
         # Get truth polygons
         try:
-            truth_polys_from_file, error_truth = util.get_polys_from_file(list_truth[i])
+            truth_polys_from_file, error_truth = util.get_article_polys_from_file(list_truth[i])
         except IOError:
             error_truth = True
         # Get reco polygons
@@ -175,9 +175,7 @@ if __name__ == '__main__':
     #                     help="only evaluate hypo polygons if they are (partly) contained in region polygons,"
     #                          " if they are available (default: %(default)s)")
 
-    # Global flags
-    flags = parser.parse_args()
-
     # Run evaluation
+    flags = parser.parse_args()
     run_eval(flags.truth, flags.reco, flags.min_tol, flags.max_tol, flags.threshold_tf)
 
