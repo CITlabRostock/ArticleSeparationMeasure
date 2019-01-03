@@ -2,6 +2,7 @@ from __future__ import division
 from __future__ import print_function
 
 import math
+import numpy as np
 from io import open
 from scipy.stats import linregress
 
@@ -195,8 +196,8 @@ def calc_line(x_points, y_points):
 
     :param x_points: array of x-coordinates.
     :param y_points: array of y-coordinates.
-    :type x_points: list of float
-    :type y_points: list of float
+    :type x_points: list of int
+    :type y_points: list of int
     :return: slope m and intersection with y-axis n
     """
     assert isinstance(x_points, list)
