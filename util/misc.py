@@ -3,8 +3,8 @@ from __future__ import print_function
 
 import math
 from io import open
+from scipy.stats import linregress
 
-import linear_regression as lin_reg
 from geometry import Polygon, Rectangle
 
 
@@ -189,6 +189,30 @@ def norm_poly_dists(poly_list, des_dist):
     return res
 
 
+def calc_line(x_points, y_points):
+    """Calculate the linear regression curve for the points ``x_points`` and ``y_points`` represented by the slope and
+    the intersection of with the y-axis.
+
+    :param x_points: array of x-coordinates.
+    :param y_points: array of y-coordinates.
+    :type x_points: list of float
+    :type y_points: list of float
+    :return: slope m and intersection with y-axis n
+    """
+    assert isinstance(x_points, list)
+    assert isinstance(y_points, list)
+    assert len(x_points) == len(y_points)
+
+    if max([0] + x_points) - min([float("inf")] + x_points) < 2:
+        return np.mean(x_points), float("inf")
+
+    try:
+        m, n, _, _, _ = linregress(x_points, y_points)
+        return m, n
+    except ValueError:
+        print("Failed linear regression calculation for values\nx = {} and\ny = {}".format(x_points, y_points))
+
+
 def calc_reg_line_stats(poly):
     """Return the angle of baseline polygon ``poly`` and the intersection of the linear regression line with the y-axis.
 
@@ -207,7 +231,7 @@ def calc_reg_line_stats(poly):
         if x_max == x_min:
             m = float("inf")
         else:
-            n, m = lin_reg.calc_line(poly.x_points, [-y for y in poly.y_points])
+            m, n = calc_line(poly.x_points, [-y for y in poly.y_points])
     else:
         x1, x2 = poly.x_points
         y1, y2 = [-y for y in poly.y_points]
