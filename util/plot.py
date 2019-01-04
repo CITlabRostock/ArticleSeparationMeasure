@@ -50,7 +50,7 @@ def add_baselines(axes, blines, color):
     """
     # Make a list of polygons where each polgon contains of [x,y]-pairs
     blines = [np.transpose(p) for p in blines]
-    # Make sure to use "None" in quotation marks, otherwise the default value will be returned
+    # Make sure to use "None" in quotation marks, otherwise the default value is used and the polygons are filled
     try:
         baseline_collection = PolyCollection(blines, closed=False, edgecolors=color, facecolors="None")
         return axes.add_collection(baseline_collection)
@@ -58,26 +58,14 @@ def add_baselines(axes, blines, color):
         print("Could not handle the input blines: {}".format(blines))
         exit(1)
 
-    # for b in blines:
-    #     assert len(b[0]) == len(b[1]), "different number of x- and y-coordinates: {}".format(b)
-    #     # if type of coordinates is not int or float, then skip
-    #     if not check_type(b[0], [int, float]) or not check_type(b[1], [int, float]):
-    #         print("Skip baseline {}".format(b))
-    #         continue
-    #     b = np.transpose(b)
-    #     # x, y = b
-    #     # axes.plot(x, y, color=color)
-    #     patches.Polygon(b, closed=False, color=color)
-    # return axes
-
 
 def toggle_view(event, views):
     """Switch between different views in the current plot by pressing the ``event`` key.
 
-    :param event:
+    :param event: the key event given by the user, various options available, e.g. to toggle the baselines
     :param views: dictionary of different views given by name:object pairs
     :type event: matplotlib.backend_bases.KeyEvent
-    :return:
+    :return: None
     """
     # Toggle baselines
     if event.key == 'b':
@@ -90,6 +78,12 @@ def toggle_view(event, views):
         is_visible = views["image"].get_visible()
         views["image"].set_visible(not is_visible)
         plt.draw()
+
+    if event.key == 'h':
+        print("Usage:\n"
+              "\ti: toggle image\n"
+              "\tb: toggle baselines\n"
+              "\th: show this help")
 
     else:
         return
@@ -117,16 +111,12 @@ if __name__ == '__main__':
                  [[1395, 2228, 2661], [344, 326, 347]]]
 
     baseline_collection = add_baselines(ax, baselines, "blue")
-    # ax.add_collection(baseline_collection)
     ax.autoscale_view()
 
     views = {"baselines": baseline_collection, "image": img_plot}
 
     # Toggle baselines with "b" and the image with "i"
     plt.connect('key_press_event', lambda event: toggle_view(event, views))
-
-    # baseline_collection.set_visible(False)
-    # img_plot.set_visible(False)
 
     plt.axis("off")
     plt.show()
