@@ -41,6 +41,8 @@ class BaselineMeasure(object):
         recall /= per_dist_tol_tick_recall.shape[0]
         self.result.page_wise_recall.append(recall)
 
+        # TODO: We don't need that here for articles, since we use the article_wise_recall (here page_wise)
+        # TODO: matrix for a greedy alignment first (-> remove for speedup?)
         self.calc_recall()
 
     def add_per_dist_tol_tick_per_line_precision(self, per_dist_tol_tick_per_line_precision):
@@ -65,6 +67,8 @@ class BaselineMeasure(object):
         precision /= per_dist_tol_tick_precision.shape[0]
         self.result.page_wise_precision.append(precision)
 
+        # TODO: We don't need that here for articles, since we use the article_wise_precision (here page_wise)
+        # TODO: matrix for a greedy alignment first (-> remove for speedup?)
         self.calc_precision()
 
     def calc_recall(self):
