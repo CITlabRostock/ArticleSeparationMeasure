@@ -132,8 +132,8 @@ def run_eval(truth_file, reco_file, min_tol, max_tol, threshold_tf):
     print("")
     print("Pagewise evaluation:")
     print("")
-    print("{:>10s} {:>10s} {:>10s} {:>10s}  {:^30s}  {:^30s}".format(
-        "", "P-value", "R-value", "F-value", "TruthFile", "HypoFile"))
+    print("{:>6s} {:>10s} {:>10s} {:>10s}  {:^30s}  {:^30s}".format(
+        "Mode", "P-value", "R-value", "F-value", "TruthFile", "HypoFile"))
     print("-" * (10 + 1 + 10 + 1 + 10 + 1 + 10 + 2 + 30 + 2 + 30))
 
     for p, articles in enumerate(zip(poly_pages_truth, poly_pages_reco)):
@@ -180,10 +180,10 @@ def run_eval(truth_file, reco_file, min_tol, max_tol, threshold_tf):
         articles_reco_length = np.asarray([len(l) for l in articles_reco], dtype=np.float32)
         articles_truth_weighting = articles_truth_length / np.sum(articles_truth_length)
         articles_reco_weighting = articles_reco_length / np.sum(articles_reco_length)
-        # row-wise weighting for precision
-        article_wise_precision_w = article_wise_precision * np.expand_dims(articles_truth_weighting, axis=1)
-        # column-wise weighting for recall
-        article_wise_recall_w = article_wise_recall * articles_reco_weighting
+        # column-wise weighting for precision
+        article_wise_precision_w = article_wise_precision * articles_reco_weighting
+        # row-wise weighting for recall
+        article_wise_recall_w = article_wise_recall * np.expand_dims(articles_truth_weighting, axis=1)
 
         # 2.1) Greedy, independant alignment
         greedy_align_precision_w = greedy_alignment(article_wise_precision_w)
@@ -202,17 +202,17 @@ def run_eval(truth_file, reco_file, min_tol, max_tol, threshold_tf):
         recall_w_r2p = recall_w
         f_measure_w_r2p = util.f_measure(precision_w_r2p, recall_w_r2p)
 
-        print("{:>10s} {:>10.4f} {:>10.4f} {:>10.4f}  {}  {}".format(
+        print("{:>6s} {:>10.4f} {:>10.4f} {:>10.4f}  {}  {}".format(
             "i", precision, recall, f_measure, list_truth_fixed[p], list_reco_fixed[p]))
-        print("{:>10s} {:>10.4f} {:>10.4f} {:>10.4f}  {}  {}".format(
+        print("{:>6s} {:>10.4f} {:>10.4f} {:>10.4f}  {}  {}".format(
             "p2r", precision_p2r, recall_p2r, f_measure_p2r, list_truth_fixed[p], list_reco_fixed[p]))
-        print("{:>10s} {:>10.4f} {:>10.4f} {:>10.4f}  {}  {}".format(
+        print("{:>6s} {:>10.4f} {:>10.4f} {:>10.4f}  {}  {}".format(
             "r2p", precision_r2p, recall_r2p, f_measure_r2p, list_truth_fixed[p], list_reco_fixed[p]))
-        print("{:>10s} {:>10.4f} {:>10.4f} {:>10.4f}  {}  {}".format(
+        print("{:>6s} {:>10.4f} {:>10.4f} {:>10.4f}  {}  {}".format(
             "w, i", precision_w, recall_w, f_measure_w, list_truth_fixed[p], list_reco_fixed[p]))
-        print("{:>10s} {:>10.4f} {:>10.4f} {:>10.4f}  {}  {}".format(
+        print("{:>6s} {:>10.4f} {:>10.4f} {:>10.4f}  {}  {}".format(
             "w, p2r", precision_w_p2r, recall_w_p2r, f_measure_w_p2r, list_truth_fixed[p], list_reco_fixed[p]))
-        print("{:>10s} {:>10.4f} {:>10.4f} {:>10.4f}  {}  {}".format(
+        print("{:>6s} {:>10.4f} {:>10.4f} {:>10.4f}  {}  {}".format(
             "w, r2p", precision_w_r2p, recall_w_r2p, f_measure_w_r2p, list_truth_fixed[p], list_reco_fixed[p]))
         print("")
 
