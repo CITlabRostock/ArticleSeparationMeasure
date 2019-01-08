@@ -1,0 +1,95 @@
+pageTruth <-> pageReco1:
+mit Average     : unabhängiges Alignment: 1
+                  Alignmet von R auf P  : 1
+                  Aignment von P auf R  : 1
+mit Gewichtung  : unabhängiges Alignment: 1
+                  Alignmet von R auf P  : 1
+                  Aignment von P auf R  : 1
+
+pageTruth <-> pageReco2:
+mit Average     : unabhängiges Alignment: 10/23
+                  Alignmet von R auf P  : 2/7
+                  Aignment von P auf R  : 10/23
+mit Gewichtung  : unabhängiges Alignment: 5/8
+                  Alignmet von R auf P  : 5/8
+                  Aignment von P auf R  : 5/8
+
+pageTruth <-> pageReco3:
+mit Average     : unabhängiges Alignment: 51/113
+                  Alignmet von R auf P  : 51/113
+                  Aignment von P auf R  : 51/113
+mit Gewichtung  : unabhängiges Alignment: 3/8
+                  Alignmet von R auf P  : 3/8
+                  Aignment von P auf R  : 3/8
+
+pageTruth <-> pageReco4:
+mit Average     : unabhängiges Alignment: 20/27
+                  Alignmet von R auf P  : 20/27
+                  Aignment von P auf R  : 20/27
+mit Gewichtung  : unabhängiges Alignment: 7/8
+                  Alignmet von R auf P  : 7/8
+                  Aignment von P auf R  : 7/8
+
+pageTruth <-> pageReco5:
+mit Average     : unabhängiges Alignment: 44/57
+                  Alignmet von R auf P  : 28/45
+                  Aignment von P auf R  : 44/57
+mit Gewichtung  : unabhängiges Alignment: 7/8
+                  Alignmet von R auf P  : 7/8
+                  Aignment von P auf R  : 7/8
+
+pageTruth <-> pageReco6:
+mit Average     : unabhängiges Alignment: 3/4
+                  Alignmet von R auf P  : 36/55
+                  Aignment von P auf R  : 3/4
+mit Gewichtung  : unabhängiges Alignment: 3/4
+                  Alignmet von R auf P  : 3/4
+                  Aignment von P auf R  : 3/4
+
+pageTruth <-> pageReco7:
+mit Average     : unabhängiges Alignment: 16/31
+                  Alignmet von R auf P  : 16/31
+                  Aignment von P auf R  : 11/13
+mit Gewichtung  : unabhängiges Alignment: 1/2
+                  Alignmet von R auf P  : 1/2
+                  Aignment von P auf R  : 1/2
+
+pageTruth <-> pageReco8:
+mit Average     : unabhängiges Alignment: 175/251
+                  Alignmet von R auf P  : 175/251
+                  Aignment von P auf R  : 175/251
+mit Gewichtung  : unabhängiges Alignment: 5/8
+                  Alignmet von R auf P  : 5/8
+                  Aignment von P auf R  : 5/8
+
+pageTruth <-> pageReco9:
+mit Average     : unabhängiges Alignment: 78/97
+                  Alignmet von R auf P  : 78/97
+                  Aignment von P auf R  : 24/31
+mit Gewichtung  : unabhängiges Alignment: 3/4
+                  Alignmet von R auf P  : 3/4
+                  Aignment von P auf R  : 3/4
+
+pageTruth <-> pageReco10:
+mit Average     : unabhängiges Alignment: 84/101
+                  Alignmet von R auf P  : 84/101
+                  Aignment von P auf R  : 84/101
+mit Gewichtung  : unabhängiges Alignment: 7/8
+                  Alignmet von R auf P  : 7/8
+                  Aignment von P auf R  : 7/8
+
+pageTruth <-> pageReco11:
+mit Average     : unabhängiges Alignment: 112/123
+                  Alignmet von R auf P  : 112/123
+                  Aignment von P auf R  : 112/123
+mit Gewichtung  : unabhängiges Alignment: 7/8
+                  Alignmet von R auf P  : 7/8
+                  Aignment von P auf R  : 7/8
+
+pageTruth <-> pageReco12:
+mit Average     : unabhängiges Alignment: 80/147
+                  Alignmet von R auf P  : 80/147
+                  Aignment von P auf R  : 35/69
+mit Gewichtung  : unabhängiges Alignment: 5/8
+                  Alignmet von R auf P  : 5/8
+                  Aignment von P auf R  : 5/8
