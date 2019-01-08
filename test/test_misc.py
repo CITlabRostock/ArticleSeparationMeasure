@@ -22,7 +22,7 @@ class TestUtil(TestCase):
         self.assertEqual(res, misc.load_text_file(filename))
 
     def test_parse_string(self):
-        polygon = misc.parse_string("1,2;2,3;4,5")
+        polygon = misc.string_to_poly("1,2;2,3;4,5")
         self.assertEqual(polygon.n_points, 3)
         self.assertEqual(polygon.x_points, [1, 2, 4])
         self.assertEqual(polygon.y_points, [2, 3, 5])

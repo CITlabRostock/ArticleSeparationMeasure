@@ -76,8 +76,8 @@ def run_eval(truth_file, reco_file, min_tol, max_tol, threshold_tf):
     print("")
     print("Loading protocol:")
 
-    poly_pages_truth = []
-    poly_pages_reco = []
+    pages_article_truth = []
+    pages_article_reco = []
 
     num_article_truth = 0
     num_poly_truth = 0
@@ -104,8 +104,8 @@ def run_eval(truth_file, reco_file, min_tol, max_tol, threshold_tf):
         # Skip pages with errors in either truth or reco
         if not (error_truth or error_reco):
             if truth_article_polys_from_file is not None and reco_article_polys_from_file is not None:
-                poly_pages_truth.append(truth_article_polys_from_file)
-                poly_pages_reco.append(reco_article_polys_from_file)
+                pages_article_truth.append(truth_article_polys_from_file)
+                pages_article_reco.append(reco_article_polys_from_file)
                 # Count polys
                 num_article_truth += len(truth_article_polys_from_file)
                 num_poly_truth += sum(len(polys) for polys in truth_article_polys_from_file)
@@ -136,54 +136,54 @@ def run_eval(truth_file, reco_file, min_tol, max_tol, threshold_tf):
         "Mode", "P-value", "R-value", "F-value", "TruthFile", "HypoFile"))
     print("-" * (10 + 1 + 10 + 1 + 10 + 1 + 10 + 2 + 30 + 2 + 30))
 
-    for p, articles in enumerate(zip(poly_pages_truth, poly_pages_reco)):
-        articles_truth = articles[0]
-        articles_reco = articles[1]
+    for p, page_articles in enumerate(zip(pages_article_truth, pages_article_reco)):
+        page_articles_truth = page_articles[0]
+        page_articles_reco = page_articles[1]
         # Create precision & recall matrices for article wise comparisons
-        article_wise_precision = np.zeros([len(articles_truth), len(articles_reco)])
-        article_wise_recall = np.zeros([len(articles_truth), len(articles_reco)])
+        page_wise_article_precision = np.zeros([len(page_articles_truth), len(page_articles_reco)])
+        page_wise_article_recall = np.zeros([len(page_articles_truth), len(page_articles_reco)])
         # Create baseline measure evaluation
         bl_measure_eval = BaselineMeasureEval(min_tol, max_tol)
         # Evaluate measure for each article
-        for i, article_truth in enumerate(articles_truth):
-            for j, article_reco in enumerate(articles_reco):
+        for i, article_truth in enumerate(page_articles_truth):
+            for j, article_reco in enumerate(page_articles_reco):
                 bl_measure_eval.calc_measure_for_page_baseline_polys(article_truth, article_reco)
-                article_wise_precision[i, j] = bl_measure_eval.measure.result.page_wise_precision[-1]
-                article_wise_recall[i, j] = bl_measure_eval.measure.result.page_wise_recall[-1]
+                page_wise_article_precision[i, j] = bl_measure_eval.measure.result.page_wise_precision[-1]
+                page_wise_article_recall[i, j] = bl_measure_eval.measure.result.page_wise_recall[-1]
 
         # Greedy alignment of articles
 
         # 1) Without article weighting
         # 1.1) Greedy, independant alignment
-        greedy_align_precision = greedy_alignment(article_wise_precision)
-        greedy_align_recall = greedy_alignment(article_wise_recall)
-        precision = sum_over_indices(article_wise_precision, greedy_align_precision)
-        precision = precision / len(articles_reco)
-        recall = sum_over_indices(article_wise_recall, greedy_align_recall)
-        recall = recall / len(articles_truth)
+        greedy_align_precision = greedy_alignment(page_wise_article_precision)
+        greedy_align_recall = greedy_alignment(page_wise_article_recall)
+        precision = sum_over_indices(page_wise_article_precision, greedy_align_precision)
+        precision = precision / len(page_articles_reco)
+        recall = sum_over_indices(page_wise_article_recall, greedy_align_recall)
+        recall = recall / len(page_articles_truth)
         f_measure = util.f_measure(precision, recall)
 
         # 1.2) Greedy alignment (map precision alignment to recall)
         precision_p2r = precision
-        recall_p2r = sum_over_indices(article_wise_recall, greedy_align_precision)
-        recall_p2r = recall_p2r / len(articles_truth)
+        recall_p2r = sum_over_indices(page_wise_article_recall, greedy_align_precision)
+        recall_p2r = recall_p2r / len(page_articles_truth)
         f_measure_p2r = util.f_measure(precision_p2r, recall_p2r)
 
         # 1.3) Greeday alignment (map recall alignment to precision)
-        precision_r2p = sum_over_indices(article_wise_precision, greedy_align_recall)
-        precision_r2p = precision_r2p / len(articles_reco)
+        precision_r2p = sum_over_indices(page_wise_article_precision, greedy_align_recall)
+        precision_r2p = precision_r2p / len(page_articles_reco)
         recall_r2p = recall
         f_measure_r2p = util.f_measure(precision_r2p, recall_r2p)
 
         # 2) With article weighting (based on baseline percentage portion of truth/hypo)
-        articles_truth_length = np.asarray([len(l) for l in articles_truth], dtype=np.float32)
-        articles_reco_length = np.asarray([len(l) for l in articles_reco], dtype=np.float32)
+        articles_truth_length = np.asarray([len(l) for l in page_articles_truth], dtype=np.float32)
+        articles_reco_length = np.asarray([len(l) for l in page_articles_reco], dtype=np.float32)
         articles_truth_weighting = articles_truth_length / np.sum(articles_truth_length)
         articles_reco_weighting = articles_reco_length / np.sum(articles_reco_length)
         # column-wise weighting for precision
-        article_wise_precision_w = article_wise_precision * articles_reco_weighting
+        article_wise_precision_w = page_wise_article_precision * articles_reco_weighting
         # row-wise weighting for recall
-        article_wise_recall_w = article_wise_recall * np.expand_dims(articles_truth_weighting, axis=1)
+        article_wise_recall_w = page_wise_article_recall * np.expand_dims(articles_truth_weighting, axis=1)
 
         # 2.1) Greedy, independant alignment
         greedy_align_precision_w = greedy_alignment(article_wise_precision_w)

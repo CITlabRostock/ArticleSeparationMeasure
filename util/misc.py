@@ -26,7 +26,7 @@ def load_text_file(filename):
         return res
 
 
-def parse_string(string_polygon):
+def string_to_poly(string_polygon):
     """Parse the polygon represented by the string ``string_polygon`` and return a ``Polygon`` object.
 
     :param string_polygon: coordinates of a polygon given in string format: x1,y1;x2,y2;...;xn,yn
@@ -49,7 +49,7 @@ def parse_string(string_polygon):
 
 
 def poly_to_string(polygon):
-    """Inverse method of ``parse_string``, taking a polygon as input and outputs a string holding the x,y coordinates
+    """Inverse method of ``string_to_poly``, taking a polygon as input and outputs a string holding the x,y coordinates
     of the points present in the polygon separated by semicolons ";".
 
     :param polygon: input polygon to be parsed
@@ -82,7 +82,7 @@ def get_polys_from_file(poly_file_name):
     res = []
     for poly_string in poly_strings:
         try:
-            poly = parse_string(str(poly_string))
+            poly = string_to_poly(str(poly_string))
             res.append(poly)
         except ValueError:
             return None, True
@@ -114,7 +114,7 @@ def get_article_polys_from_file(poly_file_name):
             article_polys = []
         else:
             try:
-                poly = parse_string(str(poly_string))
+                poly = string_to_poly(str(poly_string))
                 article_polys.append(poly)
             except ValueError:
                 return None, True
