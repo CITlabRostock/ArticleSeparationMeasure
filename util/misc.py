@@ -162,7 +162,6 @@ def thin_out(polygon, des_dist):
     return res
 
 
-# TODO add documentation for norm_des_dist
 def norm_poly_dists(poly_list, des_dist):
     """For a given list of polygons ``poly_list`` calculate the corresponding normed polygons, s.t. every polygon has
     adjacent pixels with a distance of ~des_dist.

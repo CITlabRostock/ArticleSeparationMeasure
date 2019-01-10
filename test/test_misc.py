@@ -8,10 +8,9 @@ import math
 from unittest import TestCase
 from util import misc
 from util.geometry import Polygon, Rectangle
-import numpy as np
 
 
-class TestUtil(TestCase):
+class TestMisc(TestCase):
 
     def test_load_text_file(self):
         filename = "./resources/lineReco1.txt"

@@ -37,7 +37,7 @@ def add_image(axes, path):
 def add_baselines(axes, blines, color):
     """Add the baselines ``blines`` to the plot ``axes``. The baselines are given by their x- and y-coordinates, e.g.
         [[[1,2,3],[2,3,4]],[[5,6,7],[7,8,9]]]
-    if we have to baseline polygons with 3 points each, where the first list is representing the x-values and the second
+    if we have two baseline polygons with 3 points each, where the first list is representing the x-values and the second
     the y-values.
 
     :param axes: represents an individual plot
@@ -68,13 +68,13 @@ def toggle_view(event, views):
     :return: None
     """
     # Toggle baselines
-    if event.key == 'b':
+    if event.key == 'b' and "baselines" in views:
         is_visible = views["baselines"].get_visible()
         views["baselines"].set_visible(not is_visible)
         plt.draw()
 
     # Toggle image
-    if event.key == 'i':
+    if event.key == 'i' and "image" in views:
         is_visible = views["image"].get_visible()
         views["image"].set_visible(not is_visible)
         plt.draw()
@@ -102,21 +102,42 @@ def check_type(lst, t):
     return True
 
 
-if __name__ == '__main__':
+def plot(img_path='', baselines=[], bcolor="blue"):
     fig, ax = plt.subplots()  # type: (plt.Figure, plt.Axes)
-    img_plot = add_image(ax, "./test/resources/metrEx.png")
+    views = {}
 
+    try:
+        img_plot = add_image(ax, img_path)
+        fig.canvas.set_window_title(img_path)
+        views.update({"image": img_plot})
+    except IOError:
+        print("Can't handle image path: {}".format(img_path))
+        # exit(1)
+
+    if baselines:
+        baseline_collection = add_baselines(ax, baselines, bcolor)
+        views.update({"baselines": baseline_collection})
+
+    ax.autoscale_view()
+
+    # Toggle bsaelines with "b", image with "i"
+    plt.connect('key_press_event', lambda event: toggle_view(event, views))
+
+    # Add text
+    plt.text(0, -20, "image path: {}\n"
+                     "gt: {}\n"
+                     "hypo: {}".format(img_path, "not implemented yet", "not implemented yet"))
+
+    # Don't show axis
+    plt.axis("off")
+    plt.show()
+
+
+if __name__ == '__main__':
+    # img_path = "./test/resources/metrEx.png"
     baselines = [[[9, 506, 684, 1139], [220, 220, 204, 211]], [[32, 537, 621, 1322], [334, 345, 325, 336]],
                  [[29, 1321], [85, 93]], [[1399, 2342, 2611], [104, 103, 130]], [[1402, 2259, 2599], [220, 211, 229]],
                  [[1395, 2228, 2661], [344, 326, 347]]]
 
-    baseline_collection = add_baselines(ax, baselines, "blue")
-    ax.autoscale_view()
-
-    views = {"baselines": baseline_collection, "image": img_plot}
-
-    # Toggle baselines with "b" and the image with "i"
-    plt.connect('key_press_event', lambda event: toggle_view(event, views))
-
-    plt.axis("off")
-    plt.show()
+    # plot(img_path, baselines)
+    plot(img_path='', baselines=baselines)
