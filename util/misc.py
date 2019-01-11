@@ -395,7 +395,7 @@ def calc_tols(polys_truth, tick_dist=5, max_d=250, rel_tol=0.25):
     for i, tol in enumerate(tols):
         if tol == 0:
             tols[i] = mean_tols
-        tols[i] = min(tol, mean_tols)
+        tols[i] = min(tols[i], mean_tols)
         tols[i] *= rel_tol
 
     return tols
