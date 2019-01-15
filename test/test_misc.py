@@ -31,7 +31,7 @@ class TestMisc(TestCase):
         res = "1,2;2,3;4,5"
         self.assertEqual(res, misc.poly_to_string(polygon))
 
-    def test_get_polys_from_file(self):
+    def test_get_polys_from_file_txt(self):
         poly_file_name = "./resources/lineReco7.txt"
         # poly_file_name = "./resources/lineReco10_withError.txt"
         # poly_file_name = "./resources/lineEmpty.txt"
@@ -62,6 +62,13 @@ class TestMisc(TestCase):
         self.assertEqual(polygon3.y_points, p3.y_points)
 
         self.assertEqual(error, False)
+
+    # TODO: add a toy example for loading a PAGEXML file
+    def test_polys_from_file_xml(self):
+        poly_file_name = "./resources/page_test.xml"
+        p_list, error = misc.get_polys_from_file(poly_file_name)
+        print(len(p_list))
+
 
     def test_blow_up(self):
         poly_in = Polygon([0, 3, 4, 5, 7, 5], [1, 3, 5, 3, 1, 0], 6)
@@ -191,7 +198,7 @@ class TestMisc(TestCase):
         points1 = [[1, 1], [0, 0]]
         points2 = [[2, 0], [0, 0]]
         or_vec1 = [1, 0]
-        or_vec2 = [1/math.sqrt(2), 1/math.sqrt(2)]
+        or_vec2 = [1 / math.sqrt(2), 1 / math.sqrt(2)]
         in_dist1 = misc.get_in_dist(points1[0], points1[1], or_vec1[0], or_vec1[1])
         in_dist2 = misc.get_in_dist(points2[0], points2[1], or_vec2[0], or_vec2[1])
         in_dist3 = misc.get_in_dist(points1[1], points1[0], or_vec1[0], or_vec1[1])

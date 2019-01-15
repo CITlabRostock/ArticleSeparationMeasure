@@ -7,6 +7,7 @@ from io import open
 from scipy.stats import linregress
 
 from geometry import Polygon, Rectangle
+import PAGE
 
 
 def load_text_file(filename):
@@ -76,18 +77,38 @@ def get_polys_from_file(poly_file_name):
     """
 
     # TODO: Bool return value necessary? -> Just check if returned list is None (then you know if it was skipped or not)
-    poly_strings = load_text_file(poly_file_name)
-    if len(poly_strings) == 0:
-        return None, False
+    if poly_file_name.endswith(".txt"):
+        poly_strings = load_text_file(poly_file_name)
+        if len(poly_strings) == 0:
+            return None, False
 
-    res = []
-    for poly_string in poly_strings:
+        res = []
+        for poly_string in poly_strings:
+            try:
+                poly = parse_string(str(poly_string))
+                res.append(poly)
+            except ValueError:
+                return None, True
+        return res, False
+    elif poly_file_name.endswith(".xml"):
         try:
-            poly = parse_string(str(poly_string))
-            res.append(poly)
+            page = PAGE.parse_file(poly_file_name)
         except ValueError:
             return None, True
-    return res, False
+        # TODO: Implement a method that sorts the textregions according to the reading order
+        res = []
+        for tr in page.text_regions:
+            # sort text lines according to the y-values (from top to bottom)
+            tr.sort_text_lines()
+            for tl in tr.text_lines:
+                # bl is a list of "Point" objects
+                bl = tl.baseline
+                # bl is a list of shape (N,2)
+                bl = np.array(PAGE.Point.point_to_list(bl))
+                poly = Polygon(*bl.transpose().tolist(), n_points=len(bl))
+
+                res.append(poly)
+        return res, False
 
 
 def blow_up(polygon):
@@ -286,7 +307,7 @@ def get_dist_fast(point, bb):
 
 
 def get_in_dist(p1, p2, or_vec_x, or_vec_y):
-    """Calculate the inline distance of the points ``p1`` and ``p2`` according to the orientation vector with
+    """Calculate the (signed) in-text distance of the points ``p1`` and ``p2`` according to the orientation vector with
     x-coordinate ``or_vec_x`` and y-coordinate ``or_vec_y``.
 
 
@@ -356,38 +377,38 @@ def calc_tols(polys_truth, tick_dist=5, max_d=250, rel_tol=0.25):
                     pt_b1 = poly_b.x_points[0], poly_b.y_points[0]
                     pt_b2 = poly_b.x_points[-1], poly_b.y_points[-1]
 
-                    # calculate the inline distance of the points
+                    # calculate the in-text distance of the begin and end points of the current polygons
                     in_dist1 = get_in_dist(pt_a1, pt_b1, or_vec_x, or_vec_y)
                     in_dist2 = get_in_dist(pt_a1, pt_b2, or_vec_x, or_vec_y)
                     in_dist3 = get_in_dist(pt_a2, pt_b1, or_vec_x, or_vec_y)
                     in_dist4 = get_in_dist(pt_a2, pt_b2, or_vec_x, or_vec_y)
+
+                    # checks if poly_b is in the text range of poly_a -> if not, skip polygon
                     if (in_dist1 < 0 and in_dist2 < 0 and in_dist3 < 0 and in_dist4 < 0) or (
                             in_dist1 > 0 and in_dist2 > 0 and in_dist3 > 0 and in_dist4 > 0):
                         continue
 
+                    # at least one point of poly_b lies in the text range of poly_a, iterate over the points
                     for p_b in zip(poly_b.x_points, poly_b.y_points):
                         if abs(get_in_dist(p_a, p_b, or_vec_x, or_vec_y)) <= 2 * tick_dist:
                             dist = min(dist, abs(get_off_dist(p_a, p_b, or_vec_x, or_vec_y)))
+
+        # after the iteration dist is the minimum distance of poly_a to the "closest" polygonal GT chain
         if dist < max_d:
             tols.append(dist)
         else:
             tols.append(0)
 
-    sum_tols = 0.0
-    num_tols = 0
-    for tol in tols:
-        if tol != 0:
-            sum_tols += tol
-            num_tols += 1
+    # Calculate the mean tolerance value (for all polygons that have a minimal length different to the default)
+    mean_tols = np.mean(tols) if tols != [0] * len(tols) else max_d
 
-    mean_tols = max_d
-    if num_tols:
-        mean_tols = sum_tols / num_tols
-
+    # calculate the tolerance values for every GT polygon
     for i, tol in enumerate(tols):
         if tol == 0:
             tols[i] = mean_tols
+        # get the interline distance
         tols[i] = min(tols[i], mean_tols)
+        # 25% of the estimated interline distance yields a reasonable compromise between accuracy and flexibility
         tols[i] *= rel_tol
 
     return tols
