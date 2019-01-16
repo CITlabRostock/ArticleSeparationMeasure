@@ -129,41 +129,6 @@ class Rectangle(object):
 
         return Rectangle(tx1, ty1, width=tx2, height=ty2)
 
-    def contains(self, x, y):
-        """ checks whether the specified point (x, y) is inside this rectangle or not
-            Definition of insideness: A point is considered to lie inside a Shape if and only if:
-            - it lies completely inside the Shape boundary or
-            - it lies exactly on the Shape boundary and the space immediately adjacent to the point in the increasing x
-              direction is entirely inside the boundary or
-            - it lies exactly on a horizontal boundary segment and the space immediately adjacent to the point in the
-              increasing y direction is inside the boundary
-
-        :param x: (int) the specified x coordinate
-        :param y: (int) the specified y coordinate
-        :return: (bool) True (if point is inside this rectangle), False (otherwise)
-        """
-        assert type(x) == int, "x has to be int"
-        assert type(y) == int, "y has to be int"
-
-        w_orig = self.width
-        h_orig = self.height
-
-        if w_orig < 0 or h_orig < 0:
-            # at least one of the dimensions is negative
-            return False
-
-        x_orig = self.x
-        y_orig = self.y
-
-        if x < x_orig or y < y_orig:
-            return False
-
-        w_orig += x_orig
-        h_orig += y_orig
-
-        # overflow or intersect
-        return (w_orig < x_orig or w_orig > x) and (h_orig < y_orig or h_orig > y)
-
 
 # polygon class
 class Polygon(object):
@@ -280,91 +245,20 @@ class Polygon(object):
 
         return self.bounds.get_bounds()
 
-    # TODO: bug fix !!!
-    def contains(self, x, y):
-        """ determines whether the specified point is inside this polygon
-
-        :param x: (int) x coordinate of the point
-        :param y: (int) y coordinate of the point
-        :return: (bool) True (if point is included), False (otherwise)
-        """
-        assert type(x) == int, "x has to be int"
-        assert type(y) == int, "y has to be int"
-
-        if self.n_points <= 2 or not self.get_bounds().contains(x, y):
-            return False
-
-        hits = 0
-
-        last_x = self.x_points[-1]
-        last_y = self.y_points[-1]
-
-        # walk the edges of the polygon
-        for i in range(self.n_points):
-
-            cur_x = self.x_points[i]
-            cur_y = self.y_points[i]
-
-            if cur_y == last_y:
-                continue
-
-            if cur_x < last_x:
-                if x >= last_x:
-                    continue
-                left_x = cur_x
-            else:
-                if x >= cur_x:
-                    continue
-                left_x = last_x
-
-            if cur_y < last_y:
-                if y < cur_y or y >= last_y:
-                    continue
-                if x < left_x:
-                    hits += 1
-                    continue
-                test1 = x - cur_x
-                test2 = y - cur_y
-            else:
-                if y < last_y or y >= cur_y:
-                    continue
-                if x < left_x:
-                    hits += 1
-                    continue
-                test1 = x - last_x
-                test2 = y - last_y
-
-            if test1 < (test2 / (last_y - cur_y) * (last_x - cur_x)):
-                hits += 1
-
-            last_x = cur_x
-            last_y = cur_y
-
-        # return ((hits & 1) != 0);
-        # if hits % 2 == 0:
-        #     return False
-        # elif hits % 2 == 1:
-        #     return True
-
-        return hits != 0
-
 
 if __name__ == '__main__':
     p = Polygon([1, 2, 4, 6, 7], [2, 4, 2, 3, 1], 5)
-    #
-    # print(p.x_points)
-    # print(p.y_points, "\n")
-    #
-    # p.calculate_bounds()
-    # print("(", p.bounds.x, ", ", p.bounds.y, ")", "  width = ", p.bounds.width, "  height = ", p.bounds.height, "\n")
-    #
-    # p.add_point(7, 1)
-    # print("(", p.bounds.x, ", ", p.bounds.y, ")", "  width = ", p.bounds.width, "  height = ", p.bounds.height, "\n")
-    #
-    print(p.contains(2, 1))
 
-    # r = Rectangle(1, 2, 5, 3)
-    # print(r.contains(6, 2))
-    #
-    # int_r = r.intersection(Rectangle(1, 2, 0, 0))
-    # print("(", int_r.x, ", ", int_r.y, ")", "  width = ", int_r.width, "  height = ", int_r.height)
+    print(p.x_points)
+    print(p.y_points, "\n")
+
+    p.calculate_bounds()
+    print("(", p.bounds.x, ", ", p.bounds.y, ")", "  width = ", p.bounds.width, "  height = ", p.bounds.height, "\n")
+
+    p.add_point(7, 1)
+    print("(", p.bounds.x, ", ", p.bounds.y, ")", "  width = ", p.bounds.width, "  height = ", p.bounds.height, "\n")
+
+    r = Rectangle(1, 2, 5, 3)
+
+    int_r = r.intersection(Rectangle(1, 2, 0, 0))
+    print("(", int_r.x, ", ", int_r.y, ")", "  width = ", int_r.width, "  height = ", int_r.height)
