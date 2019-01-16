@@ -151,6 +151,14 @@ def run_eval(truth_file, reco_file, min_tol, max_tol, threshold_tf):
                 page_wise_article_precision[i, j] = bl_measure_eval.measure.result.page_wise_precision[-1]
                 page_wise_article_recall[i, j] = bl_measure_eval.measure.result.page_wise_recall[-1]
 
+        # Evaluate measure for entire baseline sets
+        page_truth = [poly_truth for article_truth in page_articles_truth for poly_truth in article_truth]
+        page_reco = [poly_reco for article_reco in page_articles_reco for poly_reco in article_reco]
+        bl_measure_eval.calc_measure_for_page_baseline_polys(page_truth, page_reco)
+        page_recall = bl_measure_eval.measure.result.page_wise_recall[-1]
+        page_precision = bl_measure_eval.measure.result.page_wise_precision[-1]
+        page_f_measure = util.f_measure(page_precision, page_recall)
+
         # Greedy alignment of articles
 
         # 1) Without article weighting
@@ -214,6 +222,8 @@ def run_eval(truth_file, reco_file, min_tol, max_tol, threshold_tf):
             "w, p2r", precision_w_p2r, recall_w_p2r, f_measure_w_p2r, list_truth_fixed[p], list_reco_fixed[p]))
         print("{:>6s} {:>10.4f} {:>10.4f} {:>10.4f}  {}  {}".format(
             "w, r2p", precision_w_r2p, recall_w_r2p, f_measure_w_r2p, list_truth_fixed[p], list_reco_fixed[p]))
+        print("{:>6s} {:>10.4f} {:>10.4f} {:>10.4f}  {}  {}".format(
+            "bd", page_precision, page_recall, page_f_measure, list_truth_fixed[p], list_reco_fixed[p]))
         print("")
 
     # # Pagewise evaluation
