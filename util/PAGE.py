@@ -124,10 +124,6 @@ class Text:
         self.alternatives = alternatives  # if alternatives is not None else []
         self.score = score  # if score is not None else ''
 
-    def to_dict(self):
-        # returns the class variables and the current values in a dictionary
-        return vars(self)
-
 
 class BaseElement:
     """
@@ -152,19 +148,19 @@ class Region(BaseElement):
     Region base class. (Abstract)
     This is the superclass for all the extracted regions. Possible region types are:
 
-    - TextRegion
-    - ImageRegion
-    - LineDrawingRegion
-    - GraphicRegion
-    - TableRegion
-    - ChartRegion
-    - SeparatorRegion
-    - MathsRegion
-    - ChemRegion
-    - MusicRegion
-    - AdvertRegion
-    - NoiseRegion
-    - UnknownRegion
+    - TextRegion (Pure text is represented as a text region. This includes drop capitals, but practically ornate text may be considered as a graphic.)
+    - ImageRegion (An image is considered to be more intricate and complex than a graphic. These can be photos or drawings.)
+    - LineDrawingRegion (A line drawing is a single colour illustration without solid areas.)
+    - GraphicRegion (Regions containing simple graphics, such as a company logo, should be marked as graphic regions.)
+    - TableRegion (Tabular data in any form is represented with a table region. Rows and columns may or may not have separator lines; these lines are not separator regions.)
+    - ChartRegion (Regions containing charts or graphs of any type, should be marked as chart regions.)
+    - SeparatorRegion (Separators are lines that lie between columns and paragraphs and can be used to logically separate different articles from each other.)
+    - MathsRegion (Regions containing equations and mathematical symbols should be marked as maths regions.)
+    - ChemRegion (Regions containing chemical formulas.)
+    - MusicRegion (Regions containing musical notations.)
+    - AdvertRegion (Regions containing advertisements.)
+    - NoiseRegion (Noise regions are regions where no real data lies, only false data created by artifacts on the document or scanner noise.)
+    - UnknownRegion (To be used if the region type cannot be ascertained.)
 
     according to http://www.ocr-d.de/sites/all/gt_guidelines/pagecontent_xsd_Complex_Type_pc_RegionType.html.
 
@@ -189,6 +185,23 @@ class Region(BaseElement):
                 'coords': Point.list_from_xml(etree_element.find('p:Coords', _ns)),
                 'custom': etree_element.attrib.get('custom')}
 
+    def parse_custom(self):
+        """Parses the custom tag of the region and returns the values as a dictionary of dictionaries, e.g.:
+            `custom="readingOrder {index:0;} structure {id:a1; type:article;}` returns
+            `{'readingOrder':{'index':'0'}, 'structure':{'id':'a1', type:'article'}}`
+        :return: dict of dict
+        """
+        res = dict()
+        if self.custom:
+            attribs = self.custom.replace(' ', '').split('}')[:-1]
+            for a in attribs:
+                assert len(a.split('{', 1)) == 2
+                key, vals = a.split('{', 1)
+                vals = vals.split(';')[:-1]
+                d = {val.split(':')[0]: val.split(':')[1] for val in vals}
+                res[key] = d
+        return res
+
     def to_xml(self, name_element=None):
         """Converts a `Region` object to an XML structure
 
@@ -204,18 +217,6 @@ class Region(BaseElement):
             et.set('custom', self.custom)
         return et
 
-    @classmethod
-    def from_dict(cls, dictionary):
-        """From a seralized dictionary creates a dictionary of the atributes (non serialized)
-
-        :param dictionary: serialized dictionary
-        :return: non serialized dictionary
-        """
-        return {'id': dictionary.get('id'),
-                'coords': Point.list_to_point(dictionary.get('coords')),
-                'custom': dictionary.get('custom')
-                }
-
 
 class GraphicRegion(Region):
     """Region containing simple graphics. Company logos for example should be marked as graphic regions. Reference:
@@ -226,8 +227,8 @@ class GraphicRegion(Region):
     """
     tag = 'GraphicRegion'
 
-    def __init__(self, id=None, coords=None):
-        super(GraphicRegion, self).__init__(id=id, coords=coords)
+    def __init__(self, id=None, coords=None, custom=None):
+        super(GraphicRegion, self).__init__(id=id, coords=coords, custom=custom)
 
     @classmethod
     def from_xml(cls, e):
@@ -251,10 +252,11 @@ class TextRegion(Region):
     """
     tag = 'TextRegion'
 
-    def __init__(self, id=None, coords=None, text_lines=None, text_equiv=''):
+    def __init__(self, id=None, coords=None, text_lines=None, text_equiv='', custom=None):
         super(TextRegion, self).__init__(id=id, coords=coords)
         self.text_equiv = text_equiv if text_equiv is not None else ''
         self.text_lines = text_lines if text_lines is not None else []
+        self.custom = custom
 
     def sort_text_lines(self, top_to_bottom=True):
         """
@@ -297,12 +299,12 @@ class TextLine(Region):
     """
     tag = 'TextLine'
 
-    def __init__(self, id=None, coords=None, baseline=None, text=None, article_id=None,
-                 line_group_id=None, column_group_id=None):
+    def __init__(self, id=None, coords=None, baseline=None, text=None, article_id=None, custom=None):
         super(TextLine, self).__init__(id=id if id is not None else str(uuid4()), coords=coords)
         self.baseline = baseline if baseline is not None else []
         self.text = text if text is not None else Text()
         self.article_id = article_id if article_id is not None else ''
+        self.custom = custom
 
     @classmethod
     def from_xml(cls, etree_element):
@@ -347,11 +349,12 @@ class TableRegion(Region):
 
     tag = 'TableRegion'
 
-    def __init__(self, id=None, coords=None, rows=None, columns=None, embedded_text=None):
+    def __init__(self, id=None, coords=None, rows=None, columns=None, embedded_text=None, custom=None):
         super(TableRegion, self).__init__(id=id, coords=coords)
         self.rows = rows
         self.columns = columns
         self.embedded_text = embedded_text
+        self.custom = custom
 
     @classmethod
     def from_xml(cls, e):
@@ -383,8 +386,8 @@ class SeparatorRegion(Region):
 
     tag = 'SeparatorRegion'
 
-    def __init__(self, id, coords=None):
-        super(SeparatorRegion, self).__init__(id=id, coords=coords)
+    def __init__(self, id, coords=None, custom=None):
+        super(SeparatorRegion, self).__init__(id=id, coords=coords, custom=custom)
 
     @classmethod
     def from_xml(cls, e):
@@ -394,6 +397,7 @@ class SeparatorRegion(Region):
     def to_xml(self, name_element='SeparatorRegion'):
         separator_et = super(SeparatorRegion, self).to_xml(name_element)
         return separator_et
+
 
 class Border(BaseElement):
     """
@@ -632,5 +636,11 @@ if __name__ == '__main__':
     #           <Coords points = "49,223 1231,223 1231,281 49,281"/>
     #
     path_to_pagexml = './test/resources/page_test.xml'
-    article_dict = get_baseline_text_dict(path_to_pagexml)
-    print(article_dict)
+    # article_dict = get_baseline_text_dict(path_to_pagexml)
+    # print(article_dict)
+    page = parse_file(path_to_pagexml)
+    for tr in page.text_regions:
+        print(tr.parse_custom())
+        for tl in tr.text_lines:
+            print("\t{}".format(tl.parse_custom()))
+        print("================")
