@@ -10,6 +10,7 @@ import matplotlib.image as mpimg
 import numpy as np
 
 from matplotlib.collections import PolyCollection
+from geometry import Polygon
 
 
 # Two interfaces supported by matplotlib:
@@ -41,14 +42,23 @@ def add_baselines(axes, blines, color):
     the y-values.
 
     :param axes: represents an individual plot
-    :param blines: list of lists of x- and y-coordinates
+    :param blines: list of lists of x- and y-coordinates or a Polygon object
     :param color: color of the baselines in the plot
     :type axes: matplotlib.pyplot.Axes
-    :type blines: list of (list of (list of Union[int,float]))
+    :type blines: list of (Union[list of (list of Union[int,float]), Polygon])
     :type color: str
-    :return: None
+    :return: matplotlib.pyplot.Axes
     """
-    # Make a list of polygons where each polgon contains of [x,y]-pairs
+
+    # convert blines to a list of lists of x- and y-coordinates
+    _blines = []
+    for bline in blines:
+        if type(bline) == Polygon:
+            _blines.append([bline.x_points, bline.y_points])
+        else:
+            _blines.append(bline)
+
+    # Make a list of polygons where each polygon consists of [x,y]-pairs
     blines = [np.transpose(p) for p in blines]
     # Make sure to use "None" in quotation marks, otherwise the default value is used and the polygons are filled
     try:
@@ -57,6 +67,22 @@ def add_baselines(axes, blines, color):
     except ValueError:
         print("Could not handle the input blines: {}".format(blines))
         exit(1)
+
+
+def add_surrounding_polygon(axes, polygon, color='green'):
+    """Add the surrounding polygon ``polygon`` to the plot ``axes``. The polygon is given by its x- and y-coordinates.
+
+    :param axes: represents an individual plot
+    :param polygon: surrounding polygon
+    :param color: color of the surrounding polygon plot (default: green)
+    :return:
+    """
+    if type(polygon) == Polygon:
+        poly_coll = PolyCollection([np.transpose([polygon.x_points, polygon.y_points])], closed=True, edgecolors=color,
+                                   facecolors="None")
+    else:
+        poly_coll = PolyCollection([np.transpose(polygon)], closed=True, edgecolors=color, facecolors="None")
+    return axes.add_collection(poly_coll)
 
 
 def toggle_view(event, views):
@@ -102,7 +128,7 @@ def check_type(lst, t):
     return True
 
 
-def plot(img_path='', baselines=[], bcolor="blue"):
+def plot(img_path='', baselines=[], surr_polys=[], bcolor="blue"):
     fig, ax = plt.subplots()  # type: (plt.Figure, plt.Axes)
     views = {}
 
@@ -117,6 +143,10 @@ def plot(img_path='', baselines=[], bcolor="blue"):
     if baselines:
         baseline_collection = add_baselines(ax, baselines, bcolor)
         views.update({"baselines": baseline_collection})
+
+    if surr_polys:
+        for poly in surr_polys:
+            add_surrounding_polygon(ax, poly)
 
     ax.autoscale_view()
 
@@ -134,10 +164,15 @@ def plot(img_path='', baselines=[], bcolor="blue"):
 
 
 if __name__ == '__main__':
-    # img_path = "./test/resources/metrEx.png"
+    img_path = "./test/resources/metrEx.png"
     baselines = [[[9, 506, 684, 1139], [220, 220, 204, 211]], [[32, 537, 621, 1322], [334, 345, 325, 336]],
                  [[29, 1321], [85, 93]], [[1399, 2342, 2611], [104, 103, 130]], [[1402, 2259, 2599], [220, 211, 229]],
                  [[1395, 2228, 2661], [344, 326, 347]]]
+    surr_poly = [[[0, 500, 500, 0], [0, 0, 500, 500]], [[505, 1005, 1005, 505], [505, 505, 1005, 1005]],
+                 [[10, 490, 490, 10], [10, 10, 490, 490]]]
 
-    # plot(img_path, baselines)
-    plot(img_path='', baselines=baselines)
+    plot(img_path, baselines, surr_poly)
+    # plot(img_path='', baselines=baselines)
+
+    path_to_img = "./test/resources/page_test.tif"
+    path_to_xml = "./test/resources/page_test.xml"

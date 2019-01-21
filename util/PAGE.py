@@ -15,6 +15,8 @@ import os
 from uuid import uuid4
 from abc import ABCMeta
 
+from geometry import Polygon
+
 # https://docs.python.org/3.5/library/xml.etree.elementtree.html#parsing-xml-with-namespaces
 _ns = {'p': 'http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15'}
 _attribs = {'xmlns:xsi': "http://www.w3.org/2001/XMLSchema-instance",
@@ -109,6 +111,27 @@ class Point:
         :return: list of shape (N,2)
         """
         return [[pt.x, pt.y] for pt in points]
+
+    @classmethod
+    def list_point_to_polygon(cls, points):
+        """Converts a list of ``Point`` to a Polygon object.
+
+        :param points: list of Point objects
+        :type points: list of Point
+        :return: Polygon object
+        """
+        x, y = np.transpose(Point.point_to_list(points))
+        return Polygon(x.tolist(), y.tolist(), n_points=len(x))
+
+    @classmethod
+    def list_to_polygon(cls, coords):
+        """Converts a list of coordinates ``coords`` to a Polygon object.
+
+        :param coords: list of coordinates, shape (N, 2)
+        :return: Polygon object
+        """
+        x, y = np.transpose(coords)
+        return Polygon(x, y, n_points=len(x))
 
 
 class Text:
@@ -536,6 +559,34 @@ class Page(BaseElement):
             page_et.append(tr.to_xml())
         return page_et
 
+    def get_baseline_text_dict(self, as_poly=True):
+        text_regions = self.text_regions
+
+        # dictionary with article_ids as keys and a list of tuple (text, baseline) as values
+        article_dict = dict()
+
+        for tr in text_regions:
+            for tl in tr.text_lines:
+                # tl.baseline is a list of Point elements
+                if as_poly:
+                    baseline = Point.list_point_to_polygon(tl.baseline)
+                else:
+                    baseline = Point.point_to_list(tl.baseline)
+                text = tl.text.text_equiv.encode('utf8') if tl.text.text_equiv else ''
+
+                if tl.article_id:
+                    if tl.article_id in article_dict:
+                        article_dict[tl.article_id].append((text, baseline))
+                    else:
+                        article_dict[tl.article_id] = [(text, baseline)]
+                else:
+                    if 'other' in article_dict:
+                        article_dict['other'].append((text, baseline))
+                    else:
+                        article_dict['other'] = [(text, baseline)]
+
+        return article_dict
+
     def write_to_file(self, filename, creator_name='ArticleSeparation', comments=''):
         """
         Export Page object to json or page-xml format. Will assume the format based on the extension of the filename,
@@ -595,36 +646,37 @@ def parse_file(filename):
         raise NotImplementedError
 
 
-def get_baseline_text_dict(filename):
-    page = parse_file(filename)
-    text_regions = page.text_regions
-
-    # dictionary with article_ids as keys and a list of tuple (baseline, text) as values
-    article_dict = dict()
-
-    for tr in text_regions:
-        for tl in tr.text_lines:
-            # tl.baseline is a list of Point elements
-            baseline = Point.point_to_list(tl.baseline)
-            # baseline = np.squeeze(Point.list_to_cv2poly(tl.baseline))
-            text = tl.text.text_equiv
-
-            if tl.article_id:
-                if tl.article_id in article_dict:
-                    # article_dict[tl.article_id] = np.concatenate((baselines[tl.article_id], [baseline]))
-                    article_dict[tl.article_id].append((text, baseline))
-                else:
-                    # baselines[tl.article_id] = np.array([baseline])
-                    article_dict[tl.article_id] = [(text, baseline)]
-            else:
-                if 'other' in article_dict:
-                    # baselines['other'] = np.concatenate((baselines['other'], [baseline]))
-                    article_dict['other'].append((text, baseline))
-                else:
-                    # baselines['other'] = np.array([baseline])
-                    article_dict['other'] = [(text, baseline)]
-
-    return article_dict
+# def get_baseline_text_dict(filename):
+#     page = parse_file(filename)
+#     text_regions = page.text_regions
+#
+#     # dictionary with article_ids as keys and a list of tuple (text, baseline) as values
+#     article_dict = dict()
+#
+#     for tr in text_regions:
+#         for tl in tr.text_lines:
+#             # tl.baseline is a list of Point elements
+#             # baseline = Point.point_to_list(tl.baseline)
+#             baseline = Point.list_point_to_polygon(tl.baseline)
+#             # baseline = np.squeeze(Point.list_to_cv2poly(tl.baseline))
+#             text = tl.text.text_equiv.encode('utf8')
+#
+#             if tl.article_id:
+#                 if tl.article_id in article_dict:
+#                     # article_dict[tl.article_id] = np.concatenate((baselines[tl.article_id], [baseline]))
+#                     article_dict[tl.article_id].append((text, baseline))
+#                 else:
+#                     # baselines[tl.article_id] = np.array([baseline])
+#                     article_dict[tl.article_id] = [(text, baseline)]
+#             else:
+#                 if 'other' in article_dict:
+#                     # baselines['other'] = np.concatenate((baselines['other'], [baseline]))
+#                     article_dict['other'].append((text, baseline))
+#                 else:
+#                     # baselines['other'] = np.array([baseline])
+#                     article_dict['other'] = [(text, baseline)]
+#
+#     return article_dict
 
 
 if __name__ == '__main__':
@@ -635,12 +687,22 @@ if __name__ == '__main__':
     #       <TextLine id="tl_1" custom="readingOrder {index:0;} structure {id:a1; type:article;}">
     #           <Coords points = "49,223 1231,223 1231,281 49,281"/>
     #
-    path_to_pagexml = './test/resources/page_test.xml'
-    # article_dict = get_baseline_text_dict(path_to_pagexml)
-    # print(article_dict)
+    # path_to_pagexml = './test/resources/page_test.xml'
+    prefix = '/home/max/data/as/newseye_as_test_data/xml_files_gt/'
+    path_to_pagexml = prefix + '19000715_1-0001.xml'  # 19000715_1-0002.xml & 19000715_1-0003.xml
     page = parse_file(path_to_pagexml)
-    for tr in page.text_regions:
-        print(tr.parse_custom())
-        for tl in tr.text_lines:
-            print("\t{}".format(tl.parse_custom()))
-        print("================")
+    article_dict = page.get_baseline_text_dict()
+    print(article_dict)
+    for a, t_list in article_dict.iteritems():
+        print("=====================\nArticle {}".format(a))
+        for t in t_list:
+            print("\t{}".format(t[0]))
+            # print("\t{}".format(t[1]))
+            print("\t{} - {}".format(t[1].x_points, t[1].y_points))
+
+    # page = parse_file(path_to_pagexml)
+    # for tr in page.text_regions:
+    #     print(tr.parse_custom())
+    #     for tl in tr.text_lines:
+    #         print("\t{}".format(tl.parse_custom()))
+    #     print("================")
