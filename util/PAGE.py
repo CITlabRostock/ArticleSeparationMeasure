@@ -333,7 +333,7 @@ class TextLine(Region):
     def from_xml(cls, etree_element):
         cls.check_tag(etree_element.tag)
         custom_tag = etree_element.attrib.get('custom')
-        if "structure" in custom_tag:
+        if custom_tag and "structure" in custom_tag:
             structure = custom_tag[custom_tag.find('structure'):].split('}')[0] + '}'
             article_id = structure[structure.find('id:') + 3:].split(';')[0]
         else:
@@ -688,8 +688,9 @@ if __name__ == '__main__':
     #           <Coords points = "49,223 1231,223 1231,281 49,281"/>
     #
     # path_to_pagexml = './test/resources/page_test.xml'
-    prefix = '/home/max/data/as/newseye_as_test_data/xml_files_gt/'
-    path_to_pagexml = prefix + '19000715_1-0001.xml'  # 19000715_1-0002.xml & 19000715_1-0003.xml
+    prefix = '/home/max/data/as/newseye_as_test_data/xml_files_hy/'
+    # path_to_pagexml = prefix + '19000715_1-0001.xml'  # 19000715_1-0002.xml & 19000715_1-0003.xml
+    path_to_pagexml = prefix + '19000715_1-0001.jpg.xml'
     page = parse_file(path_to_pagexml)
     article_dict = page.get_baseline_text_dict()
     print(article_dict)
