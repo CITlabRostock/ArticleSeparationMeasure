@@ -227,7 +227,7 @@ if __name__ == '__main__':
     # plot(img_path, [baselines], surr_poly)
     # # plot(img_path='', baselines=baselines)
 
-    path_to_img = "./test/resources/page_test.jpg"
+    path_to_img = "./test/resources/page_test.tif"
     path_to_xml = "./test/resources/page_test.xml"
 
     path_to_xml = "/home/max/data/as/newseye_as_test_data/xml_files_gt/19000715_1-0001.xml"
