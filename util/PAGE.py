@@ -333,7 +333,7 @@ class TextLine(Region):
     def from_xml(cls, etree_element):
         cls.check_tag(etree_element.tag)
         custom_tag = etree_element.attrib.get('custom')
-        if "structure" in custom_tag:
+        if custom_tag and "structure" in custom_tag:
             structure = custom_tag[custom_tag.find('structure'):].split('}')[0] + '}'
             article_id = structure[structure.find('id:') + 3:].split(';')[0]
         else:

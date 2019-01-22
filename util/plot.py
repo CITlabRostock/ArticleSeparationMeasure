@@ -6,11 +6,29 @@ from __future__ import absolute_import
 from __future__ import division
 
 import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
+from PIL import Image
 import numpy as np
+import random
 
 from matplotlib.collections import PolyCollection
+from matplotlib import colors as mcolors
 from geometry import Polygon
+import PAGE
+
+# COLORS = ['blue', 'green', 'red', 'cyan', 'magenta',
+#           'limegreen', 'darkcyan', 'lightsalomon', 'aquamarine',
+#           'purple', 'darkkhaki', 'brown', 'gold']
+
+BASECOLORS = mcolors.BASE_COLORS
+COLORS = dict(BASECOLORS, **mcolors.CSS4_COLORS)
+by_hsv = sorted((tuple(mcolors.rgb_to_hsv(mcolors.to_rgba(color)[:3])), name)
+                for name, color in COLORS.items())
+COLORS_SORTED = [name for hsv, name in by_hsv]
+SEED = 500
+random.seed(SEED)
+random.shuffle(COLORS_SORTED)
+
+DEFAULT_COLOR = 'grey'
 
 
 # Two interfaces supported by matplotlib:
@@ -29,13 +47,13 @@ def add_image(axes, path):
     :return: mpimg.AxesImage
     """
     try:
-        img = mpimg.imread(path)
+        img = Image.open(path)
         return axes.imshow(img)
     except ValueError:
         print("Can't add image to the plot. Check if '{}' is a valid path.".format(path))
 
 
-def add_baselines(axes, blines, color):
+def add_baselines(axes, blines, color=DEFAULT_COLOR):
     """Add the baselines ``blines`` to the plot ``axes``. The baselines are given by their x- and y-coordinates, e.g.
         [[[1,2,3],[2,3,4]],[[5,6,7],[7,8,9]]]
     if we have two baseline polygons with 3 points each, where the first list is representing the x-values and the second
@@ -59,10 +77,10 @@ def add_baselines(axes, blines, color):
             _blines.append(bline)
 
     # Make a list of polygons where each polygon consists of [x,y]-pairs
-    blines = [np.transpose(p) for p in blines]
+    blines = [np.transpose(p) for p in _blines]
     # Make sure to use "None" in quotation marks, otherwise the default value is used and the polygons are filled
     try:
-        baseline_collection = PolyCollection(blines, closed=False, edgecolors=color, facecolors="None")
+        baseline_collection = PolyCollection(blines, closed=False, edgecolors=color, facecolors="None", linewidths=1.2)
         return axes.add_collection(baseline_collection)
     except ValueError:
         print("Could not handle the input blines: {}".format(blines))
@@ -95,8 +113,11 @@ def toggle_view(event, views):
     """
     # Toggle baselines
     if event.key == 'b' and "baselines" in views:
-        is_visible = views["baselines"].get_visible()
-        views["baselines"].set_visible(not is_visible)
+        for bline in views["baselines"]:
+            is_visible = bline.get_visible()
+            bline.set_visible(not is_visible)
+        # is_visible = views["baselines"].get_visible()
+        # views["baselines"].set_visible(not is_visible)
         plt.draw()
 
     # Toggle image
@@ -128,7 +149,7 @@ def check_type(lst, t):
     return True
 
 
-def plot(img_path='', baselines=[], surr_polys=[], bcolor="blue"):
+def plot(img_path='', baselines_list=[], surr_polys=[], bcolors=[]):
     fig, ax = plt.subplots()  # type: (plt.Figure, plt.Axes)
     views = {}
 
@@ -137,12 +158,21 @@ def plot(img_path='', baselines=[], surr_polys=[], bcolor="blue"):
         fig.canvas.set_window_title(img_path)
         views.update({"image": img_plot})
     except IOError:
-        print("Can't handle image path: {}".format(img_path))
-        # exit(1)
+        print("Can't display image given by path: {}".format(img_path))
 
-    if baselines:
-        baseline_collection = add_baselines(ax, baselines, bcolor)
-        views.update({"baselines": baseline_collection})
+    if len(bcolors):
+        assert len(bcolors) == len(baselines_list)
+    else:
+        bcolors = ['blue'] * len(baselines_list)
+
+    if baselines_list:
+        for i, blines in enumerate(baselines_list):
+            print("blines before input: ", blines)
+            baseline_collection = add_baselines(ax, blines, bcolors[i])
+            if 'baselines' in views:
+                views['baselines'].append(baseline_collection)
+            else:
+                views['baselines'] = [baseline_collection]
 
     if surr_polys:
         for poly in surr_polys:
@@ -163,16 +193,44 @@ def plot(img_path='', baselines=[], surr_polys=[], bcolor="blue"):
     plt.show()
 
 
+def plot_article_dict(article_dict):
+    # add baselines to the image
+    baselines_list = []
+    for l in article_dict.itervalues():
+        bline_list = []
+        for _, bline in l:
+            bline_list.append(bline)
+        baselines_list.append(bline_list)
+    plot(path_to_img, baselines_list, bcolors=COLORS_SORTED[:len(baselines_list)])
+
+
+def plot_pagexml(page, path_to_img):
+    if type(page) == str:
+        page = PAGE.parse_file(page)
+    assert type(page) == PAGE.Page, "Type must be Page, got {} instead.".format(type(page))
+
+    # get article-baselines dictionary
+    ad = page.get_baseline_text_dict(as_poly=True)
+
+    # add baselines and plot
+    plot_article_dict(ad)
+
+
 if __name__ == '__main__':
-    img_path = "./test/resources/metrEx.png"
-    baselines = [[[9, 506, 684, 1139], [220, 220, 204, 211]], [[32, 537, 621, 1322], [334, 345, 325, 336]],
-                 [[29, 1321], [85, 93]], [[1399, 2342, 2611], [104, 103, 130]], [[1402, 2259, 2599], [220, 211, 229]],
-                 [[1395, 2228, 2661], [344, 326, 347]]]
-    surr_poly = [[[0, 500, 500, 0], [0, 0, 500, 500]], [[505, 1005, 1005, 505], [505, 505, 1005, 1005]],
-                 [[10, 490, 490, 10], [10, 10, 490, 490]]]
+    # img_path = "./test/resources/metrEx.png"
+    # baselines = [[[9, 506, 684, 1139], [220, 220, 204, 211]], [[32, 537, 621, 1322], [334, 345, 325, 336]],
+    #              [[29, 1321], [85, 93]], [[1399, 2342, 2611], [104, 103, 130]], [[1402, 2259, 2599], [220, 211, 229]],
+    #              [[1395, 2228, 2661], [344, 326, 347]]]
+    # surr_poly = [[[0, 500, 500, 0], [0, 0, 500, 500]], [[505, 1005, 1005, 505], [505, 505, 1005, 1005]],
+    #              [[10, 490, 490, 10], [10, 10, 490, 490]]]
+    #
+    # plot(img_path, [baselines], surr_poly)
+    # # plot(img_path='', baselines=baselines)
 
-    plot(img_path, baselines, surr_poly)
-    # plot(img_path='', baselines=baselines)
-
-    path_to_img = "./test/resources/page_test.tif"
+    path_to_img = "./test/resources/page_test.jpg"
     path_to_xml = "./test/resources/page_test.xml"
+
+    path_to_xml = "/home/max/data/as/newseye_as_test_data/xml_files_gt/19000715_1-0001.xml"
+    path_to_img = "/home/max/data/as/newseye_as_test_data/image_files/19000715_1-0001.jpg"
+
+    plot_pagexml(path_to_xml, path_to_img)
