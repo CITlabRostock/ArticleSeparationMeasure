@@ -5,6 +5,9 @@ from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import division
 
+from geometry import Polygon
+import PAGE
+
 import matplotlib.pyplot as plt
 from PIL import Image
 import numpy as np
@@ -12,12 +15,6 @@ import random
 
 from matplotlib.collections import PolyCollection
 from matplotlib import colors as mcolors
-from geometry import Polygon
-import PAGE
-
-# COLORS = ['blue', 'green', 'red', 'cyan', 'magenta',
-#           'limegreen', 'darkcyan', 'lightsalomon', 'aquamarine',
-#           'purple', 'darkkhaki', 'brown', 'gold']
 
 BASECOLORS = mcolors.BASE_COLORS
 COLORS = dict(BASECOLORS, **mcolors.CSS4_COLORS)
@@ -167,7 +164,6 @@ def plot(img_path='', baselines_list=[], surr_polys=[], bcolors=[]):
 
     if baselines_list:
         for i, blines in enumerate(baselines_list):
-            print("blines before input: ", blines)
             baseline_collection = add_baselines(ax, blines, bcolors[i])
             if 'baselines' in views:
                 views['baselines'].append(baseline_collection)
@@ -193,7 +189,7 @@ def plot(img_path='', baselines_list=[], surr_polys=[], bcolors=[]):
     plt.show()
 
 
-def plot_article_dict(article_dict):
+def plot_article_dict(article_dict, path_to_img):
     # add baselines to the image
     baselines_list = []
     for l in article_dict.itervalues():
@@ -213,7 +209,7 @@ def plot_pagexml(page, path_to_img):
     ad = page.get_baseline_text_dict(as_poly=True)
 
     # add baselines and plot
-    plot_article_dict(ad)
+    plot_article_dict(ad, path_to_img)
 
 
 if __name__ == '__main__':
@@ -233,4 +229,5 @@ if __name__ == '__main__':
     path_to_xml = "/home/max/data/as/newseye_as_test_data/xml_files_gt/19000715_1-0001.xml"
     path_to_img = "/home/max/data/as/newseye_as_test_data/image_files/19000715_1-0001.jpg"
 
-    plot_pagexml(path_to_xml, path_to_img)
+    plot_pagexml(PAGE.parse_file(path_to_xml), path_to_img)
+
