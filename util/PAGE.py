@@ -688,9 +688,9 @@ if __name__ == '__main__':
     #           <Coords points = "49,223 1231,223 1231,281 49,281"/>
     #
     # path_to_pagexml = './test/resources/page_test.xml'
-    prefix = '/home/max/data/as/newseye_as_test_data/xml_files_hy/'
+    prefix = '/home/max/data/as/newseye_as_test_data/files_hy/'
     # path_to_pagexml = prefix + '19000715_1-0001.xml'  # 19000715_1-0002.xml & 19000715_1-0003.xml
-    path_to_pagexml = prefix + '19000715_1-0001.jpg.xml'
+    path_to_pagexml = prefix + '19000715_1-0001.xml'
     page = parse_file(path_to_pagexml)
     article_dict = page.get_baseline_text_dict()
     print(article_dict)

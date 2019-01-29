@@ -12,8 +12,8 @@ import random
 
 from matplotlib.collections import PolyCollection
 from matplotlib import colors as mcolors
-from geometry import Polygon
-import PAGE
+from util.geometry import Polygon
+import util.PAGE as PAGE
 
 # COLORS = ['blue', 'green', 'red', 'cyan', 'magenta',
 #           'limegreen', 'darkcyan', 'lightsalomon', 'aquamarine',
@@ -80,7 +80,7 @@ def add_baselines(axes, blines, color=DEFAULT_COLOR):
     blines = [np.transpose(p) for p in _blines]
     # Make sure to use "None" in quotation marks, otherwise the default value is used and the polygons are filled
     try:
-        baseline_collection = PolyCollection(blines, closed=False, edgecolors=color, facecolors="None", linewidths=1.2)
+        baseline_collection = PolyCollection(blines, closed=False, edgecolors=color, facecolors="None", linewidths=1.5)
         return axes.add_collection(baseline_collection)
     except ValueError:
         print("Could not handle the input blines: {}".format(blines))
