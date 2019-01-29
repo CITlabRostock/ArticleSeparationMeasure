@@ -4,6 +4,7 @@ from argparse import ArgumentParser
 
 from main.eval_measure import BaselineMeasureEval
 import util.misc as util
+import cProfile
 
 
 def run_eval(truth_file, reco_file, min_tol, max_tol, threshold_tf):
@@ -178,6 +179,12 @@ if __name__ == '__main__':
     # Global flags
     flags = parser.parse_args()
 
+    pr = cProfile.Profile()
+    pr.enable()
+
     # Run evaluation
     run_eval(flags.truth, flags.reco, flags.min_tol, flags.max_tol, flags.threshold_tf)
+
+    pr.disable()
+    pr.print_stats(sort='time')
 
