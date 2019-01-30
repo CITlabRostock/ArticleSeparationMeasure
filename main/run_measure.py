@@ -5,6 +5,7 @@ import numpy as np
 
 from main.eval_measure import BaselineMeasureEval
 import util.misc as util
+import cProfile
 
 
 def greedy_alignment(array):
@@ -212,16 +213,16 @@ def run_eval(truth_file, reco_file, min_tol, max_tol, threshold_tf):
 
         print("{:>6s} {:>10.4f} {:>10.4f} {:>10.4f}  {}  {}".format(
             "i", precision, recall, f_measure, list_truth_fixed[p], list_reco_fixed[p]))
-        print("{:>6s} {:>10.4f} {:>10.4f} {:>10.4f}  {}  {}".format(
-            "p2r", precision_p2r, recall_p2r, f_measure_p2r, list_truth_fixed[p], list_reco_fixed[p]))
-        print("{:>6s} {:>10.4f} {:>10.4f} {:>10.4f}  {}  {}".format(
-            "r2p", precision_r2p, recall_r2p, f_measure_r2p, list_truth_fixed[p], list_reco_fixed[p]))
+        # print("{:>6s} {:>10.4f} {:>10.4f} {:>10.4f}  {}  {}".format(
+        #     "p2r", precision_p2r, recall_p2r, f_measure_p2r, list_truth_fixed[p], list_reco_fixed[p]))
+        # print("{:>6s} {:>10.4f} {:>10.4f} {:>10.4f}  {}  {}".format(
+        #     "r2p", precision_r2p, recall_r2p, f_measure_r2p, list_truth_fixed[p], list_reco_fixed[p]))
         print("{:>6s} {:>10.4f} {:>10.4f} {:>10.4f}  {}  {}".format(
             "w, i", precision_w, recall_w, f_measure_w, list_truth_fixed[p], list_reco_fixed[p]))
-        print("{:>6s} {:>10.4f} {:>10.4f} {:>10.4f}  {}  {}".format(
-            "w, p2r", precision_w_p2r, recall_w_p2r, f_measure_w_p2r, list_truth_fixed[p], list_reco_fixed[p]))
-        print("{:>6s} {:>10.4f} {:>10.4f} {:>10.4f}  {}  {}".format(
-            "w, r2p", precision_w_r2p, recall_w_r2p, f_measure_w_r2p, list_truth_fixed[p], list_reco_fixed[p]))
+        # print("{:>6s} {:>10.4f} {:>10.4f} {:>10.4f}  {}  {}".format(
+        #     "w, p2r", precision_w_p2r, recall_w_p2r, f_measure_w_p2r, list_truth_fixed[p], list_reco_fixed[p]))
+        # print("{:>6s} {:>10.4f} {:>10.4f} {:>10.4f}  {}  {}".format(
+        #     "w, r2p", precision_w_r2p, recall_w_r2p, f_measure_w_r2p, list_truth_fixed[p], list_reco_fixed[p]))
         print("{:>6s} {:>10.4f} {:>10.4f} {:>10.4f}  {}  {}".format(
             "bd", page_precision, page_recall, page_f_measure, list_truth_fixed[p], list_reco_fixed[p]))
         print("")
@@ -304,7 +305,24 @@ if __name__ == '__main__':
     #                     help="only evaluate hypo polygons if they are (partly) contained in region polygons,"
     #                          " if they are available (default: %(default)s)")
 
-    # Run evaluation
-    flags = parser.parse_args()
-    run_eval(flags.truth, flags.reco, flags.min_tol, flags.max_tol, flags.threshold_tf)
+    # # Run evaluation
+    # flags = parser.parse_args()
+    # run_eval(flags.truth, flags.reco, flags.min_tol, flags.max_tol, flags.threshold_tf)
+
+    # gt_file_path = "./test/resources/articles_for_tests_imperfect_bd/truth.lst"
+    # hy_file_path = "./test/resources/articles_for_tests_imperfect_bd/reco.lst"
+
+    pr = cProfile.Profile()
+    pr.enable()
+
+    gt_file_path = "./test/resources/newseye_as_test_data/files_gt/truth.lst"
+    hy_file_path = "./test/resources/newseye_as_test_data/files_hy/hypo.lst"
+
+    run_eval(gt_file_path, hy_file_path, max_tol=-1, min_tol=-1, threshold_tf=-1)
+
+    pr.disable()
+
+    pr.print_stats(sort='time')
+
+
 
