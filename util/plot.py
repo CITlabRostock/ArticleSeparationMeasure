@@ -5,8 +5,8 @@ from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import division
 
-from geometry import Polygon
-import PAGE
+from util.geometry import Polygon
+import util.PAGE as PAGE
 
 import matplotlib.pyplot as plt
 from PIL import Image
@@ -226,8 +226,8 @@ if __name__ == '__main__':
     path_to_img = "./test/resources/page_test.tif"
     path_to_xml = "./test/resources/page_test.xml"
 
-    path_to_xml = "/home/max/data/as/newseye_as_test_data/xml_files_gt/19000715_1-0001.xml"
-    path_to_img = "/home/max/data/as/newseye_as_test_data/image_files/19000715_1-0001.jpg"
+    path_to_xml = "./test/resources/newseye_as_test_data/xml_files_gt/19000715_1-0001.xml"
+    path_to_img = "./test/resources/newseye_as_test_data/image_files/19000715_1-0001.jpg"
 
     plot_pagexml(PAGE.parse_file(path_to_xml), path_to_img)
 

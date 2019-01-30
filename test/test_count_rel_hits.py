@@ -112,9 +112,9 @@ poly_gt = Polygon(poly_gt_x, poly_gt_y, len(poly_gt_x))
 poly_hypo_x = range(poly_num2)
 poly_hypo_y = range(poly_num2, 0, -1)
 poly_hypo = Polygon(poly_hypo_x, poly_hypo_y, len(poly_hypo_x))
-tols = np.arange(num_tols) + 1.0
+tolerances = np.arange(num_tols) + 1.0
 
-hits = count_rel_hits(poly_hypo, poly_gt, tols)
-hits2 = count_rel_hits_v2(poly_hypo, poly_gt, tols)
+hits = count_rel_hits(poly_hypo, poly_gt, tolerances)
+hits2 = count_rel_hits_v2(poly_hypo, poly_gt, tolerances)
 print("hits1\n", hits)
 print("hits2\n", hits2)
