@@ -4,8 +4,8 @@ from __future__ import print_function
 import math
 from io import open
 
-import linear_regression as lin_reg
-from geometry import Polygon, Rectangle
+import util.linear_regression as lin_reg
+from util.geometry import Polygon, Rectangle
 
 
 def load_text_file(filename):
