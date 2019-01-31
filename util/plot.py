@@ -12,8 +12,8 @@ import random
 
 from matplotlib.collections import PolyCollection
 from matplotlib import colors as mcolors
-from geometry import Polygon
-import PAGE
+from util.geometry import Polygon
+import util.PAGE as PAGE
 
 # COLORS = ['blue', 'green', 'red', 'cyan', 'magenta',
 #           'limegreen', 'darkcyan', 'lightsalomon', 'aquamarine',
@@ -196,7 +196,7 @@ def plot(img_path='', baselines_list=[], surr_polys=[], bcolors=[]):
 def plot_article_dict(article_dict):
     # add baselines to the image
     baselines_list = []
-    for l in article_dict.itervalues():
+    for l in article_dict.values():
         bline_list = []
         for _, bline in l:
             bline_list.append(bline)

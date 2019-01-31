@@ -1,13 +1,10 @@
-from __future__ import division
-from __future__ import print_function
-
 import math
 import numpy as np
 from io import open
 from scipy.stats import linregress
 
-from geometry import Polygon, Rectangle
-import PAGE
+from util.geometry import Polygon, Rectangle
+import util.PAGE as PAGE
 
 
 def load_text_file(filename):
@@ -340,7 +337,6 @@ def get_off_dist(p1, p2, or_vec_x, or_vec_y):
     return diff_x * or_vec_y - diff_y * or_vec_x
 
 
-# TODO: Compare calculations with Tobis dissertation
 def calc_tols(polys_truth, tick_dist=5, max_d=250, rel_tol=0.25):
     """Calculate tolerance values for every GT baseline according to https://arxiv.org/pdf/1705.03311.pdf.
 

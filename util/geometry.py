@@ -1,4 +1,3 @@
-from __future__ import print_function
 import sys
 
 
@@ -48,20 +47,20 @@ class Rectangle(object):
             if new_v > old_v:
                 # negative overflow
                 if self.width >= 0:
-                    self.width += new_v - (-sys.maxint - 1)
+                    self.width += new_v - (-sys.maxsize - 1)
 
-                new_v = -sys.maxint - 1
+                new_v = -sys.maxsize - 1
         else:
             # moving rightward or staying still
             if new_v < old_v:
                 # positive overflow
                 if self.width >= 0:
-                    self.width += new_v - sys.maxint
+                    self.width += new_v - sys.maxsize
 
                     if self.width < 0:
-                        self.width = sys.maxint
+                        self.width = sys.maxsize
 
-                new_v = sys.maxint
+                new_v = sys.maxsize
 
         self.x = new_v
 
@@ -73,20 +72,20 @@ class Rectangle(object):
             if new_v > old_v:
                 # negative overflow
                 if self.height >= 0:
-                    self.height += new_v - (-sys.maxint - 1)
+                    self.height += new_v - (-sys.maxsize - 1)
 
-                new_v = -sys.maxint - 1
+                new_v = -sys.maxsize - 1
         else:
             # moving downward or staying still
             if new_v < old_v:
                 # positive overflow
                 if self.height >= 0:
-                    self.height += new_v - sys.maxint
+                    self.height += new_v - sys.maxsize
 
                     if self.height < 0:
-                        self.height = sys.maxint
+                        self.height = sys.maxsize
 
-                new_v = sys.maxint
+                new_v = sys.maxsize
 
         self.y = new_v
 
@@ -122,10 +121,10 @@ class Rectangle(object):
         # height of the intersection rectangle
         ty2 -= ty1
         # tx2, ty2 might underflow
-        if tx2 < -sys.maxint - 1:
-            tx2 = -sys.maxint - 1
-        if ty2 < -sys.maxint - 1:
-            ty2 = -sys.maxint - 1
+        if tx2 < -sys.maxsize - 1:
+            tx2 = -sys.maxsize - 1
+        if ty2 < -sys.maxsize - 1:
+            ty2 = -sys.maxsize - 1
 
         return Rectangle(tx1, ty1, width=tx2, height=ty2)
 

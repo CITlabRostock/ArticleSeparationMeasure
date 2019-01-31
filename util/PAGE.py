@@ -8,14 +8,19 @@ Recognition. The PAGE format is described at
     https://www.primaresearch.org/schema/PAGE/gts/pagecontent/2017-07-15/pagecontent.xsd
 """
 
-from xml.etree import ElementTree as ET
+from xml.etree import cElementTree as ET
+# from lxml.etree import ElementTree as ET
+# from lxml.etree import ElementTree as ET
+# from lxml import etree as ET
+from lxml import builder
+from lxml.etree import tostring
 import numpy as np
 import datetime
 import os
 from uuid import uuid4
 from abc import ABCMeta
 
-from geometry import Polygon
+from util.geometry import Polygon
 
 # https://docs.python.org/3.5/library/xml.etree.elementtree.html#parsing-xml-with-namespaces
 _ns = {'p': 'http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15'}
@@ -605,7 +610,16 @@ class Page(BaseElement):
             root.append(self.to_xml())
             for k, v in _attribs.items():
                 root.attrib[k] = v
-            ET.ElementTree(element=root).write(filename)
+            # The write method does not support the "standalone" tag in the declaration line...
+            ET.ElementTree(element=root).write(filename, encoding='utf8', xml_declaration=False)
+            # xml_str = tostring(ET.ElementTree(element=root).getroot())
+            # print(xml_str[:20])
+            with open(filename, "r") as f:
+                decl_line = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+                lines = f.readlines()
+                lines.insert(0, decl_line)
+            with open(filename, "w") as f:
+                f.writelines(lines)
 
         # Updating metadata
         self.metadata.creator = creator_name
@@ -637,6 +651,7 @@ def parse_file(filename):
 
     if extension == '.xml':
         xml_page = ET.parse(filename)
+        # xml_page = etree.parse(filename)
         page_elements = xml_page.find('p:Page', _ns)
         metadata_et = xml_page.find('p:Metadata', _ns)
         page = Page.from_xml(page_elements)
@@ -693,11 +708,10 @@ if __name__ == '__main__':
     page = parse_file(path_to_pagexml)
     article_dict = page.get_baseline_text_dict()
     print(article_dict)
-    for a, t_list in article_dict.iteritems():
+    for a, t_list in article_dict.items():
         print("=====================\nArticle {}".format(a))
         for t in t_list:
             print("\t{}".format(t[0]))
-            # print("\t{}".format(t[1]))
             print("\t{} - {}".format(t[1].x_points, t[1].y_points))
 
     # page = parse_file(path_to_pagexml)
@@ -706,3 +720,8 @@ if __name__ == '__main__':
     #     for tl in tr.text_lines:
     #         print("\t{}".format(tl.parse_custom()))
     #     print("================")
+
+    path_to_pagexml = './test/resources/page_test.xml'
+    path_to_pagexml_copy = './test/resources/page_test_copy.xml'
+    page = parse_file(path_to_pagexml)
+    page.write_to_file(path_to_pagexml_copy, creator_name='Max Weidemann', comments='this is a test')

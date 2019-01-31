@@ -1,4 +1,3 @@
-from __future__ import print_function
 import datetime
 from argparse import ArgumentParser
 
@@ -101,7 +100,7 @@ def run_eval(truth_file, reco_file, min_tol, max_tol, threshold_tf):
     print("")
     print("Pagewise evaluation:")
     print("{:>10s} {:>10s} {:>10s}  {:^30s}  {:^30s}".format("P-value", "R-value", "F-value", "TruthFile", "HypoFile"))
-    print("-" * (10+1+10+1+10+2+30+2+30))
+    print("-" * (10 + 1 + 10 + 1 + 10 + 2 + 30 + 2 + 30))
     for i in range(len(list_truth_fixed)):
         page_precision = bl_measure.result.page_wise_precision[i]
         page_recall = bl_measure.result.page_wise_recall[i]
@@ -180,4 +179,3 @@ if __name__ == '__main__':
 
     # Run evaluation
     run_eval(flags.truth, flags.reco, flags.min_tol, flags.max_tol, flags.threshold_tf)
-
