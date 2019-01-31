@@ -1,5 +1,7 @@
 from __future__ import print_function
 import numpy as np
+import random
+import time
 from util.geometry import Polygon
 import math
 
@@ -98,23 +100,45 @@ def count_rel_hits_v2(poly_to_count, poly_ref, tols):
     # Calculate relative hits
     rel_hits = mask1 + mask2 * ((3.0 * tols_t - min_dist) / (2.0 * tols_t))
     rel_hits = np.sum(rel_hits, axis=1)
+
     rel_hits /= poly_to_count.n_points
     return rel_hits
 
 
-poly_num1 = 2000
-poly_num2 = 1000
+poly_num1 = 20000
+poly_num2 = 10000
 num_tols = 10
 
-poly_gt_x = range(poly_num1)
-poly_gt_y = range(poly_num1)
+# poly_gt_x = range(poly_num1)
+# poly_gt_y = range(poly_num1)
+
+poly_gt_x = [random.randint(0, 10000000) for i in range(poly_num1)]
+poly_gt_x.sort()
+poly_gt_y = [random.randint(0, 100) for j in range(poly_num1)]
+
 poly_gt = Polygon(poly_gt_x, poly_gt_y, len(poly_gt_x))
-poly_hypo_x = range(poly_num2)
-poly_hypo_y = range(poly_num2, 0, -1)
+
+# poly_hypo_x = range(poly_num2)
+# poly_hypo_y = range(poly_num2, 0, -1)
+
+poly_hypo_x = [random.randint(0, 10000000) for k in range(poly_num2)]
+poly_hypo_x.sort()
+poly_hypo_y = [random.randint(0, 100) for l in range(poly_num2)]
+
+print(poly_hypo_x)
+print(poly_hypo_y)
+
 poly_hypo = Polygon(poly_hypo_x, poly_hypo_y, len(poly_hypo_x))
+
 tolerances = np.arange(num_tols) + 1.0
 
+t = time.time()
 hits = count_rel_hits(poly_hypo, poly_gt, tolerances)
+print("\nTime for the \"old\" version in s: ", time.time() - t)
+
+t = time.time()
 hits2 = count_rel_hits_v2(poly_hypo, poly_gt, tolerances)
-print("hits1\n", hits)
-print("hits2\n", hits2)
+print("Time for the \"new\" version in s: ", time.time() - t, "\n")
+
+print("hits \"old\":\n", hits)
+print("hits \"new\":\n", hits2)

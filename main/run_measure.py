@@ -323,6 +323,3 @@ if __name__ == '__main__':
     pr.disable()
 
     pr.print_stats(sort='time')
-
-
-

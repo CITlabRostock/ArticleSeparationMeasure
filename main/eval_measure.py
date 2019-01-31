@@ -1,4 +1,7 @@
 from __future__ import print_function
+
+import time
+
 import numpy as np
 import math
 import os
@@ -98,6 +101,54 @@ class BaselineMeasureEval(object):
 
         return precision
 
+    # def count_rel_hits(self, poly_to_count, poly_ref, tols):
+    #     """
+    #     Counts the relative hits per tolerance value over all points of the polygon and corresponding
+    #     nearest points of the reference polygon.
+    #
+    #     OLDER AND SLOWER VERSION OF "count_rel_hits" !!!
+    #
+    #     :param poly_to_count: Polygon to count over
+    #     :param poly_ref: reference Polygon
+    #     :param tols: vector of tolerances
+    #     :return: vector of relative hits for every tolerance value
+    #     """
+    #     assert isinstance(poly_to_count, Polygon) and isinstance(poly_ref, Polygon), \
+    #         "poly_to_count and poly_ref have to be Polygons"
+    #     assert type(tols) == np.ndarray, "tols has to be np.ndarray"
+    #     assert len(tols.shape) == 1, "tols has to be 1d vector"
+    #     assert tols.dtype == float, "tols has to be float"
+    #
+    #     poly_to_count_bb = poly_to_count.get_bounding_box()
+    #     poly_ref_bb = poly_ref.get_bounding_box()
+    #     intersection = poly_to_count_bb.intersection(poly_ref_bb)
+    #     rel_hits = np.zeros_like(tols)
+    #
+    #     # Early stopping criterion
+    #     if min(intersection.width, intersection.height) < -3.0 * tols[-1]:
+    #         return rel_hits
+    #
+    #     # calculate relative hits
+    #     for i, point in enumerate(zip(poly_to_count.x_points, poly_to_count.y_points)):
+    #         min_dist = float("inf")
+    #         # find minimal distance to point in poly_ref
+    #         for point_ref in zip(poly_ref.x_points, poly_ref.y_points):
+    #             # min_dist = min(min_dist, math.sqrt((point[0] - point_ref[0]) * (point[0] - point_ref[0]) +
+    #             #                                    (point[1] - point_ref[1]) * (point[1] - point_ref[1])))
+    #             # min_dist = min(min_dist, math.fabs(point[0] - point_ref[0]) + math.fabs(point[1] - point_ref[1]))
+    #             min_dist = min(min_dist, abs(point[0] - point_ref[0]) + abs(point[1] - point_ref[1]))
+    #             if min_dist <= tols[0]:
+    #                 break
+    #         for j in range(rel_hits.shape[0]):
+    #             tol = tols[j]
+    #             if min_dist <= tol:
+    #                 rel_hits[j] += 1
+    #             elif tol < min_dist < 3.0 * tol:
+    #                 rel_hits[j] += (3.0 * tol - min_dist) / (2.0 * tol)
+    #
+    #     rel_hits /= poly_to_count.n_points
+    #     return rel_hits
+
     def count_rel_hits(self, poly_to_count, poly_ref, tols):
         """
         Counts the relative hits per tolerance value over all points of the polygon and corresponding
@@ -108,7 +159,7 @@ class BaselineMeasureEval(object):
         :param tols: vector of tolerances
         :return: vector of relative hits for every tolerance value
         """
-        assert isinstance(poly_to_count, Polygon) and isinstance(poly_ref, Polygon),\
+        assert isinstance(poly_to_count, Polygon) and isinstance(poly_ref, Polygon), \
             "poly_to_count and poly_ref have to be Polygons"
         assert type(tols) == np.ndarray, "tols has to be np.ndarray"
         assert len(tols.shape) == 1, "tols has to be 1d vector"
@@ -123,22 +174,27 @@ class BaselineMeasureEval(object):
         if min(intersection.width, intersection.height) < -3.0 * tols[-1]:
             return rel_hits
 
-        # calculate relative hits
-        for i, point in enumerate(zip(poly_to_count.x_points, poly_to_count.y_points)):
-            min_dist = float("inf")
-            # find minimal distance to point in poly_ref
-            for point_ref in zip(poly_ref.x_points, poly_ref.y_points):
-                # min_dist = min(min_dist, math.sqrt((point[0] - point_ref[0]) * (point[0] - point_ref[0]) +
-                #                                    (point[1] - point_ref[1]) * (point[1] - point_ref[1])))
-                min_dist = min(min_dist, math.fabs(point[0] - point_ref[0]) + math.fabs(point[1] - point_ref[1]))
-                if min_dist <= tols[0]:
-                    break
-            for j in range(rel_hits.shape[0]):
-                tol = tols[j]
-                if min_dist <= tol:
-                    rel_hits[j] += 1
-                elif tol < min_dist < 3.0 * tol:
-                    rel_hits[j] += (3.0 * tol - min_dist) / (2.0 * tol)
+        # Build and expand numpy arrays from points
+        poly_to_count_x = np.array(poly_to_count.x_points)
+        poly_to_count_y = np.array(poly_to_count.y_points)
+        poly_ref_x = np.expand_dims(np.asarray(poly_ref.x_points), axis=1)
+        poly_ref_y = np.expand_dims(np.asarray(poly_ref.y_points), axis=1)
+
+        # Calculate minimum distances
+        dist_x = abs(poly_to_count_x - poly_ref_x)
+        dist_y = abs(poly_to_count_y - poly_ref_y)
+        min_dist = np.amin(dist_x + dist_y, axis=0)
+
+        # Calculate masks for two tolerance cases
+        tols_t = np.expand_dims(np.asarray(tols), axis=1)
+
+        mask1 = (min_dist <= tols_t).astype(float)
+        mask2 = (min_dist <= 3.0 * tols_t).astype(float)
+        mask2 = mask2 - mask1
+
+        # Calculate relative hits
+        rel_hits = mask1 + mask2 * ((3.0 * tols_t - min_dist) / (2.0 * tols_t))
+        rel_hits = np.sum(rel_hits, axis=1)
 
         rel_hits /= poly_to_count.n_points
         return rel_hits
@@ -161,6 +217,56 @@ class BaselineMeasureEval(object):
 
         return recall
 
+    # def count_rel_hits_list(self, poly_to_count, polys_ref, tols):
+    #     """
+    #     OLDER AND SLOWER VERSION OF "count_rel_hits" !!!
+    #
+    #     :param poly_to_count: Polygon to count over
+    #     :param polys_ref: list of reference Polygons
+    #     :param tols: vector of tolerances
+    #     :return:
+    #     """
+    #     assert isinstance(poly_to_count, Polygon), "poly_to_count has to be Polygon"
+    #     assert type(polys_ref) == list, "polys_ref has to be list"
+    #     assert all([isinstance(poly, Polygon) for poly in polys_ref]), "elements of polys_ref have to Polygons"
+    #     assert type(tols) == np.ndarray, "tols has to be np.ndarray"
+    #     assert len(tols.shape) == 1, "tols has to be 1d vector"
+    #     assert tols.dtype == float, "tols has to be float"
+    #
+    #     poly_to_count_bb = poly_to_count.get_bounding_box()
+    #
+    #     rel_hits = np.zeros_like(tols)
+    #
+    #     for i, point in enumerate(zip(poly_to_count.x_points, poly_to_count.y_points)):
+    #         match = False
+    #         min_dist = float("inf")
+    #         for poly_ref in polys_ref:
+    #             poly_ref_bb = poly_ref.get_bounding_box()
+    #             intersection = poly_to_count_bb.intersection(poly_ref_bb)
+    #             # Early stopping criterion
+    #             if min(intersection.width, intersection.height) < -3.0 * tols[-1]:
+    #                 continue
+    #             for point_ref in zip(poly_ref.x_points, poly_ref.y_points):
+    #                 # min_dist = min(min_dist, math.sqrt((point[0] - point_ref[0]) * (point[0] - point_ref[0]) +
+    #                 #                                    (point[1] - point_ref[1]) * (point[1] - point_ref[1])))
+    #                 min_dist = min(min_dist, math.fabs(point[0] - point_ref[0]) + math.fabs(point[1] - point_ref[1]))
+    #                 if min_dist <= tols[0]:
+    #                     match = True
+    #                     break
+    #
+    #             if match:
+    #                 break
+    #
+    #         for j in range(rel_hits.shape[0]):
+    #             tol = tols[j]
+    #             if min_dist <= tol:
+    #                 rel_hits[j] += 1
+    #             elif tol < min_dist < 3.0 * tol:
+    #                 rel_hits[j] += (3.0 * tol - min_dist) / (2.0 * tol)
+    #
+    #     rel_hits /= poly_to_count.n_points
+    #     return rel_hits
+
     def count_rel_hits_list(self, poly_to_count, polys_ref, tols):
         """
 
@@ -177,41 +283,77 @@ class BaselineMeasureEval(object):
         assert tols.dtype == float, "tols has to be float"
 
         poly_to_count_bb = poly_to_count.get_bounding_box()
-        rel_hits = np.zeros_like(tols)
+        # rel_hits = np.zeros_like(tols)
 
-        for i, point in enumerate(zip(poly_to_count.x_points, poly_to_count.y_points)):
-            match = False
-            min_dist = float("inf")
-            for poly_ref in polys_ref:
-                poly_ref_bb = poly_ref.get_bounding_box()
-                intersection = poly_to_count_bb.intersection(poly_ref_bb)
-                # Early stopping criterion
-                if min(intersection.width, intersection.height) < -3.0 * tols[-1]:
-                    continue
-                for point_ref in zip(poly_ref.x_points, poly_ref.y_points):
-                    # min_dist = min(min_dist, math.sqrt((point[0] - point_ref[0]) * (point[0] - point_ref[0]) +
-                    #                                    (point[1] - point_ref[1]) * (point[1] - point_ref[1])))
-                    min_dist = min(min_dist, math.fabs(point[0] - point_ref[0]) + math.fabs(point[1] - point_ref[1]))
-                    if min_dist <= tols[0]:
-                        match = True
-                        break
+        all_inf = True
+        min_dist = np.full((poly_to_count.n_points, ), np.inf)
 
-                if match:
-                    break
+        for poly_ref in polys_ref:
+            poly_ref_bb = poly_ref.get_bounding_box()
+            intersection = poly_to_count_bb.intersection(poly_ref_bb)
 
-            for j in range(rel_hits.shape[0]):
-                tol = tols[j]
-                if min_dist <= tol:
-                    rel_hits[j] += 1
-                elif tol < min_dist < 3.0 * tol:
-                    rel_hits[j] += (3.0 * tol - min_dist) / (2.0 * tol)
+            # Early stopping criterion
+            if min(intersection.width, intersection.height) < -3.0 * tols[-1]:
+                continue
+
+            # Build and expand numpy arrays from points
+            poly_to_count_x = np.array(poly_to_count.x_points)
+            poly_to_count_y = np.array(poly_to_count.y_points)
+            poly_ref_x = np.expand_dims(np.asarray(poly_ref.x_points), axis=1)
+            poly_ref_y = np.expand_dims(np.asarray(poly_ref.y_points), axis=1)
+
+            # Calculate minimum distances
+            dist_x = abs(poly_to_count_x - poly_ref_x)
+            dist_y = abs(poly_to_count_y - poly_ref_y)
+
+            if all_inf:
+                all_inf = False
+                min_dist = np.amin(dist_x + dist_y, axis=0)
+            else:
+                min_dist = np.minimum(min_dist, np.amin(dist_x + dist_y, axis=0))
+
+        # Calculate masks for two tolerance cases
+        tols_t = np.expand_dims(np.asarray(tols), axis=1)
+
+        mask1 = (min_dist <= tols_t).astype(float)
+        mask2 = (min_dist <= 3.0 * tols_t).astype(float)
+        mask2 = mask2 - mask1
+
+        # Calculate relative hits
+        rel_hits = np.zeros(mask1.shape)
+
+        if not all_inf:
+            for i in range(mask1.shape[0]):
+                for j in range(mask1.shape[1]):
+                    if np.isinf(min_dist[j]):
+                        continue
+
+                    rel_hits[i, j] = mask1[i, j] + \
+                                     mask2[i, j] * ((3.0 * tols_t[i, i] - min_dist[j]) / (2.0 * tols_t[i, i]))
+
+        rel_hits = np.sum(rel_hits, axis=1)
 
         rel_hits /= poly_to_count.n_points
         return rel_hits
 
 
 if __name__ == '__main__':
-    print(os.environ["PYTHONPATH"])
-    z = np.zeros([1, 2])
-    if type(z) == np.ndarray:
-        print("is np.ndarray")
+    # print(os.environ["PYTHONPATH"])
+    # z = np.zeros([1, 2])
+    # if type(z) == np.ndarray:
+    #     print("is np.ndarray")
+
+    t1 = time.time()
+    for i in range(7977912):
+        min(10, abs(1 - 1) + abs(1 - 1))
+    print("Duration: ", time.time() - t1)
+
+    number_of_polygon_points = 2000
+    x_poly_1 = list(range(0, number_of_polygon_points))
+    y_poly_1 = list(range(0, number_of_polygon_points))
+    polygon = Polygon(x_points=x_poly_1, y_points=y_poly_1, n_points=number_of_polygon_points)
+
+    t1 = time.time()
+    for i in range(7977912):
+        min(10, abs(polygon.x_points[0] - polygon.y_points[0]) + abs(polygon.x_points[1] - polygon.y_points[1]))
+    print("Duration poly calls: ", time.time() - t1)

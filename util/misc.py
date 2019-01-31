@@ -297,7 +297,6 @@ def get_in_dist(p1, p2, or_vec_x, or_vec_y):
     """Calculate the inline distance of the points ``p1`` and ``p2`` according to the orientation vector with
     x-coordinate ``or_vec_x`` and y-coordinate ``or_vec_y``.
 
-
     :param p1: first point
     :param p2: second point
     :param or_vec_x: x-coordinate of the orientation vector
@@ -327,7 +326,6 @@ def get_off_dist(p1, p2, or_vec_x, or_vec_y):
     return diff_x * or_vec_y - diff_y * or_vec_x
 
 
-# TODO: Compare calculations with Tobis dissertation
 def calc_tols(polys_truth, tick_dist=5, max_d=250, rel_tol=0.25):
     """Calculate tolerance values for every GT baseline according to https://arxiv.org/pdf/1705.03311.pdf.
 
