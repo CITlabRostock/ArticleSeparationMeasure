@@ -283,7 +283,6 @@ class BaselineMeasureEval(object):
         assert tols.dtype == float, "tols has to be float"
 
         poly_to_count_bb = poly_to_count.get_bounding_box()
-        # rel_hits = np.zeros_like(tols)
 
         all_inf = True
         min_dist = np.full((poly_to_count.n_points, ), np.inf)
@@ -320,16 +319,11 @@ class BaselineMeasureEval(object):
         mask2 = mask2 - mask1
 
         # Calculate relative hits
-        rel_hits = np.zeros(mask1.shape)
-
-        if not all_inf:
-            for i in range(mask1.shape[0]):
-                for j in range(mask1.shape[1]):
-                    if np.isinf(min_dist[j]):
-                        continue
-
-                    rel_hits[i, j] = mask1[i, j] + \
-                                     mask2[i, j] * ((3.0 * tols_t[i, i] - min_dist[j]) / (2.0 * tols_t[i, i]))
+        if all_inf:
+            rel_hits = np.zeros(mask1.shape)
+        else:
+            rel_hits = mask1 + mask2 * ((3.0 * tols_t - min_dist) / (2.0 * tols_t))
+            rel_hits = np.nan_to_num(rel_hits)
 
         rel_hits = np.sum(rel_hits, axis=1)
 

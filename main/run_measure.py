@@ -1,4 +1,3 @@
-from __future__ import print_function
 import datetime
 from argparse import ArgumentParser
 import numpy as np
@@ -315,8 +314,8 @@ if __name__ == '__main__':
     pr = cProfile.Profile()
     pr.enable()
 
-    gt_file_path = "./test/resources/articles_for_tests/truth.lst"
-    hy_file_path = "./test/resources/articles_for_tests/reco.lst"
+    gt_file_path = "./test/resources/newseye_as_test_data/txt_files_gt/truth.lst"
+    hy_file_path = "./test/resources/newseye_as_test_data/txt_files_hy/hypo.lst"
 
     run_eval(gt_file_path, hy_file_path, max_tol=-1, min_tol=-1, threshold_tf=-1)
 

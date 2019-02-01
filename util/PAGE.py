@@ -15,7 +15,7 @@ import os
 from uuid import uuid4
 from abc import ABCMeta
 
-from geometry import Polygon
+from util.geometry import Polygon
 
 # https://docs.python.org/3.5/library/xml.etree.elementtree.html#parsing-xml-with-namespaces
 _ns = {'p': 'http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15'}
@@ -688,7 +688,7 @@ if __name__ == '__main__':
     #           <Coords points = "49,223 1231,223 1231,281 49,281"/>
     #
     # path_to_pagexml = './test/resources/page_test.xml'
-    prefix = '/home/max/data/as/newseye_as_test_data/files_hy/'
+    prefix = '/home/max/data/as/newseye_as_test_data/txt_files_hy/'
     # path_to_pagexml = prefix + '19000715_1-0001.xml'  # 19000715_1-0002.xml & 19000715_1-0003.xml
     path_to_pagexml = prefix + '19000715_1-0001.xml'
     page = parse_file(path_to_pagexml)
