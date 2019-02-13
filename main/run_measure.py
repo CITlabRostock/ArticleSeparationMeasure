@@ -1,10 +1,11 @@
+import time
+import jpype
 import datetime
-from argparse import ArgumentParser
 import numpy as np
+from argparse import ArgumentParser
 
-from main.eval_measure import BaselineMeasureEval
 import util.misc as util
-import cProfile
+from main.eval_measure import BaselineMeasureEval
 
 
 def greedy_alignment(array):
@@ -43,7 +44,7 @@ def sum_over_indices(array, index_list):
     return res
 
 
-def run_eval(truth_file, reco_file, min_tol, max_tol, threshold_tf):
+def run_eval(truth_file, reco_file, min_tol, max_tol, threshold_tf, java_code=True):
     if not (truth_file and reco_file):
         print("No arguments given for <truth> or <reco>, exiting. See --help for usage.")
         exit(1)
@@ -147,14 +148,19 @@ def run_eval(truth_file, reco_file, min_tol, max_tol, threshold_tf):
         # Evaluate measure for each article
         for i, article_truth in enumerate(page_articles_truth):
             for j, article_reco in enumerate(page_articles_reco):
-                bl_measure_eval.calc_measure_for_page_baseline_polys(article_truth, article_reco)
+                bl_measure_eval.calc_measure_for_page_baseline_polys(article_truth, article_reco,
+                                                                     use_java_code=java_code)
+
                 page_wise_article_precision[i, j] = bl_measure_eval.measure.result.page_wise_precision[-1]
                 page_wise_article_recall[i, j] = bl_measure_eval.measure.result.page_wise_recall[-1]
 
         # Evaluate measure for entire baseline sets
         page_truth = [poly_truth for article_truth in page_articles_truth for poly_truth in article_truth]
         page_reco = [poly_reco for article_reco in page_articles_reco for poly_reco in article_reco]
-        bl_measure_eval.calc_measure_for_page_baseline_polys(page_truth, page_reco)
+
+        bl_measure_eval.calc_measure_for_page_baseline_polys(page_truth, page_reco,
+                                                             use_java_code=java_code)
+
         page_recall = bl_measure_eval.measure.result.page_wise_recall[-1]
         page_precision = bl_measure_eval.measure.result.page_wise_precision[-1]
         page_f_measure = util.f_measure(page_precision, page_recall)
@@ -171,17 +177,17 @@ def run_eval(truth_file, reco_file, min_tol, max_tol, threshold_tf):
         recall = recall / len(page_articles_truth)
         f_measure = util.f_measure(precision, recall)
 
-        # 1.2) Greedy alignment (map precision alignment to recall)
-        precision_p2r = precision
-        recall_p2r = sum_over_indices(page_wise_article_recall, greedy_align_precision)
-        recall_p2r = recall_p2r / len(page_articles_truth)
-        f_measure_p2r = util.f_measure(precision_p2r, recall_p2r)
-
-        # 1.3) Greeday alignment (map recall alignment to precision)
-        precision_r2p = sum_over_indices(page_wise_article_precision, greedy_align_recall)
-        precision_r2p = precision_r2p / len(page_articles_reco)
-        recall_r2p = recall
-        f_measure_r2p = util.f_measure(precision_r2p, recall_r2p)
+        # # 1.2) Greedy alignment (map precision alignment to recall)
+        # precision_p2r = precision
+        # recall_p2r = sum_over_indices(page_wise_article_recall, greedy_align_precision)
+        # recall_p2r = recall_p2r / len(page_articles_truth)
+        # f_measure_p2r = util.f_measure(precision_p2r, recall_p2r)
+        #
+        # # 1.3) Greeday alignment (map recall alignment to precision)
+        # precision_r2p = sum_over_indices(page_wise_article_precision, greedy_align_recall)
+        # precision_r2p = precision_r2p / len(page_articles_reco)
+        # recall_r2p = recall
+        # f_measure_r2p = util.f_measure(precision_r2p, recall_r2p)
 
         # 2) With article weighting (based on baseline percentage portion of truth/hypo)
         articles_truth_length = np.asarray([len(l) for l in page_articles_truth], dtype=np.float32)
@@ -200,15 +206,15 @@ def run_eval(truth_file, reco_file, min_tol, max_tol, threshold_tf):
         recall_w = sum_over_indices(article_wise_recall_w, greedy_align_recall_w)
         f_measure_w = util.f_measure(precision_w, recall_w)
 
-        # 2.2) Greedy alignment (map precision alignment to recall)
-        precision_w_p2r = precision_w
-        recall_w_p2r = sum_over_indices(article_wise_recall_w, greedy_align_precision_w)
-        f_measure_w_p2r = util.f_measure(precision_w_p2r, recall_w_p2r)
-
-        # 2.3) Greeday alignment (map recall alignment to precision)
-        precision_w_r2p = sum_over_indices(article_wise_precision_w, greedy_align_recall_w)
-        recall_w_r2p = recall_w
-        f_measure_w_r2p = util.f_measure(precision_w_r2p, recall_w_r2p)
+        # # 2.2) Greedy alignment (map precision alignment to recall)
+        # precision_w_p2r = precision_w
+        # recall_w_p2r = sum_over_indices(article_wise_recall_w, greedy_align_precision_w)
+        # f_measure_w_p2r = util.f_measure(precision_w_p2r, recall_w_p2r)
+        #
+        # # 2.3) Greeday alignment (map recall alignment to precision)
+        # precision_w_r2p = sum_over_indices(article_wise_precision_w, greedy_align_recall_w)
+        # recall_w_r2p = recall_w
+        # f_measure_w_r2p = util.f_measure(precision_w_r2p, recall_w_r2p)
 
         print("{:>6s} {:>10.4f} {:>10.4f} {:>10.4f}  {}  {}".format(
             "i", precision, recall, f_measure, list_truth_fixed[p], list_reco_fixed[p]))
@@ -304,21 +310,22 @@ if __name__ == '__main__':
     #                     help="only evaluate hypo polygons if they are (partly) contained in region polygons,"
     #                          " if they are available (default: %(default)s)")
 
-    # # Run evaluation
+    # Run evaluation
     # flags = parser.parse_args()
     # run_eval(flags.truth, flags.reco, flags.min_tol, flags.max_tol, flags.threshold_tf)
+
+    t = time.time()
+    # start java virtual machine to be able to execute the java code
+    jpype.startJVM(jpype.getDefaultJVMPath())
 
     # gt_file_path = "./test/resources/articles_for_tests_imperfect_bd/truth.lst"
     # hy_file_path = "./test/resources/articles_for_tests_imperfect_bd/reco.lst"
 
-    pr = cProfile.Profile()
-    pr.enable()
-
     gt_file_path = "./test/resources/newseye_as_test_data/txt_files_gt/truth.lst"
     hy_file_path = "./test/resources/newseye_as_test_data/txt_files_hy/hypo.lst"
 
-    run_eval(gt_file_path, hy_file_path, max_tol=-1, min_tol=-1, threshold_tf=-1)
+    run_eval(gt_file_path, hy_file_path, max_tol=-1, min_tol=-1, threshold_tf=-1, java_code=True)
 
-    pr.disable()
-
-    pr.print_stats(sort='time')
+    # shut down the java virtual machine
+    jpype.shutdownJVM()
+    print("Time for the evaluation process in s: {:.2f}".format(time.time() - t))

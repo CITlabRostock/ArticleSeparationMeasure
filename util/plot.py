@@ -1,20 +1,16 @@
 # -*- coding: utf-8 -*-
 
-
-from __future__ import print_function
-from __future__ import absolute_import
-from __future__ import division
-
 from util.geometry import Polygon
 import util.PAGE as PAGE
 
-import matplotlib.pyplot as plt
-from PIL import Image
-import numpy as np
 import random
+import numpy as np
+from PIL import Image
+import matplotlib.pyplot as plt
 
-from matplotlib.collections import PolyCollection
 from matplotlib import colors as mcolors
+from matplotlib.collections import PolyCollection
+
 
 BASECOLORS = mcolors.BASE_COLORS
 COLORS = dict(BASECOLORS, **mcolors.CSS4_COLORS)
@@ -128,7 +124,6 @@ def toggle_view(event, views):
               "\ti: toggle image\n"
               "\tb: toggle baselines\n"
               "\th: show this help")
-
     else:
         return
 
