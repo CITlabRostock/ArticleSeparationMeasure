@@ -1,8 +1,16 @@
 # -*- coding: utf-8 -*-
 import os
 import datetime
+import logging
 
+import cssutils
 from lxml import etree
+from argparse import ArgumentParser
+
+from util.xmlformats.PageObjects import TextLine
+
+# Make sure that the css parser for the custom attribute doesn't spam "WARNING Property: Unknown Property name."
+cssutils.log.setLevel(logging.ERROR)
 
 
 class PageXmlException(Exception):
@@ -13,6 +21,8 @@ class PageXml:
     """
     Various utilities to deal with PageXml format
     """
+    # Creators name
+    sCREATOR = "CITlab"
 
     # Namespace for PageXml
     NS_PAGE_XML = "http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15"
@@ -22,7 +32,7 @@ class PageXml:
                   "http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15/pagecontent.xsd"
 
     # Schema for Transkribus PageXml
-    XSL_SCHEMA_FILENAME = "pagecontent.xsd"
+    XSL_SCHEMA_FILENAME = "pagecontent_transkribus.xsd"
 
     # XML schema loaded once for all
     cachedValidationContext = None
@@ -34,8 +44,13 @@ class PageXml:
     sCOMMENTS_ELT = "Comments"
     sTranskribusMetadata_ELT = "TranskribusMetadata"
     sCUSTOM_ATTR = "custom"
+    sTEXTLINE = "TextLine"
+    sBASELINE = "Baseline"
 
-    sEXT = ".pxml"
+    sEXT = ".xml"
+
+    # Article Separation "other" class
+    sAS_OTHER = "aOther"
 
     def __init__(self):
         pass
@@ -49,22 +64,14 @@ class PageXml:
 
         Return True or False
         """
-        #         schDoc = cls.getSchemaAsDoc()
         if not cls.cachedValidationContext:
             schema_filename_ = cls.get_schema_filename()
-            #             buff = open(schemaFilename).read()
             xmlschema_doc = etree.parse(schema_filename_)
-            xmlschema = etree.XMLSchema(xmlschema_doc)
+            cls.cachedValidationContext = etree.XMLSchema(xmlschema_doc)
 
-            #             prsrCtxt = libxml2.schemaNewMemParserCtxt(buff, len(buff))
-            #             schema = prsrCtxt.schemaParse()
-            #             cls.cachedValidationContext = schema.schemaNewValidCtxt()
-            cls.cachedValidationContext = xmlschema
-        #             del buff , prsrCtxt
-
-        #         res = cls.cachedValidationContext.schemaValidateDoc(doc)
         b_valid = cls.cachedValidationContext.validate(doc)
         log = cls.cachedValidationContext.error_log
+
         if not b_valid:
             print(log)
         return b_valid
@@ -136,175 +143,6 @@ class PageXml:
             nd_comments.text = comments
         return nd_metadata
 
-    # =========== XML STUFF ===========
-    @classmethod
-    def get_child_by_name(cls, elt, s_child_name):
-        """
-        look for all child elements having that name in PageXml namespace!!!
-            Example: lNd = PageXMl.get_child_by_name(elt, "Baseline")
-        return a DOM node
-        """
-        # return elt.findall(".//{%s}:%s"%(cls.NS_PAGE_XML,s_child_name))
-        return elt.xpath(".//pc:%s" % s_child_name, namespaces={"pc": cls.NS_PAGE_XML})
-
-    @classmethod
-    def get_ancestor_by_name(cls, elt, s_name):
-        return elt.xpath("ancestor::pc:%s" % s_name, namespaces={"pc": cls.NS_PAGE_XML})
-
-    @classmethod
-    def get_custom_attr(cls, nd, s_attr_name, s_sub_attr_name=None):
-        """
-        Read the custom attribute, parse it, and extract the 1st or 1st and 2nd key value
-        e.g. get_custom_attr(nd, "structure", "type")     -->  "catch-word"
-        e.g. get_custom_attr(nd, "structure")             -->  {'type':'catch-word', "toto", "tutu"}
-        return a dictionary if no 2nd key provided, or a string if 1st and 2nd key provided
-        Raise KeyError is one of the attribute does not exist
-        """
-        ddic = cls.parse_custom_attr(nd.get(cls.sCUSTOM_ATTR))
-
-        # First key
-        try:
-            dic2 = ddic[s_attr_name]
-            if s_sub_attr_name:
-                return dic2[s_sub_attr_name]
-            else:
-                return dic2
-        except KeyError as e:
-            raise PageXmlException("node %s: %s and %s not found in %s" % (nd, s_attr_name, s_sub_attr_name, ddic))
-
-    @classmethod
-    def set_custom_attr(cls, nd, s_attr_name, s_sub_attr_name, s_val):
-        """
-        Change the custom attribute by setting the value of the 1st+2nd key in the DOM
-        return the value
-        Raise KeyError is one of the attribute does not exist
-        """
-        ddic = cls.parse_custom_attr(nd.get(cls.sCUSTOM_ATTR))
-        try:
-            ddic[s_attr_name][s_sub_attr_name] = str(s_val)
-        except KeyError:
-            ddic[s_attr_name] = dict()
-            ddic[s_attr_name][s_sub_attr_name] = str(s_val)
-
-        sddic = cls.format_custom_attr(ddic)
-        nd.set(cls.sCUSTOM_ATTR, sddic)
-        return s_val
-
-    @classmethod
-    def parse_custom_attr(cls, s):
-        """
-        The custom attribute contains data in a CSS style syntax.
-        We parse this syntax here and return a dictionary of dictionary
-
-        Example:
-        parse_custom_attr( "readingOrder {index:4;} structure {type:catch-word;}" )
-            --> { 'readingOrder': { 'index':'4' }, 'structure':{'type':'catch-word'} }
-        """
-        dic = dict()
-
-        s = s.strip()
-        l_chunk = s.split('}')
-        if l_chunk:
-            for chunk in l_chunk:  # things like  "a {x:1"
-                chunk = chunk.strip()
-                if not chunk: continue
-
-                try:
-                    s_names, s_values = chunk.split('{')  # things like: ("a,b", "x:1 ; y:2")
-                except Exception:
-                    raise ValueError("Expected a '{' in '%s'" % chunk)
-
-                # the dictionary for that name
-                dic_val_for_name = dict()
-
-                ls_key_val = s_values.split(';')  # things like  "x:1"
-                for sKeyVal in ls_key_val:
-                    if not sKeyVal.strip():
-                        continue  # empty
-                    try:
-                        s_key, s_val = sKeyVal.split(':')
-                    except Exception:
-                        raise ValueError("Expected a comma-separated string, got '%s'" % sKeyVal)
-                    dic_val_for_name[s_key.strip()] = s_val.strip()
-
-                l_name = s_names.split(',')
-                for name in l_name:
-                    dic[name.strip()] = dic_val_for_name
-        return dic
-
-    @classmethod
-    def format_custom_attr(cls, ddic):
-        """
-        Format a dictionary of dictionary of string in the "custom attribute" syntax
-        e.g. custom="readingOrder {index:1;} structure {type:heading;}"
-        """
-        s = ""
-        for k1, d2 in ddic.items():
-            if s:
-                s += " "
-            s += "%s" % k1
-            s2 = ""
-            for k2, v2 in d2.items():
-                if s2:
-                    s2 += " "
-                s2 += "%s:%s;" % (k2, v2)
-            s += " {%s}" % s2
-        return s
-
-    @classmethod
-    def make_text(cls, nd, ctxt=None):
-        """
-        build the text of a sub-tree by considering that textual nodes are tokens to be concatenated, with a space as separator
-        NO! (JLM 2018)return None if no textual node found
-
-        return empty string if no text node found
-        """
-        return " ".join(nd.itertext())
-
-    def add_prefix(cls, s_prefix, nd, s_attr="id"):
-        """
-        Utility to add a add_prefix to a certain attribute of a sub-tree.
-
-        By default works on the 'id' attribute
-
-        return the number of modified attributes
-        """
-        s_attr = s_attr.strip()
-        l_nd = nd.xpath(".//*[@%s]" % s_attr)
-        ret = len(l_nd)
-        for nd in l_nd:
-            s_new_value = s_prefix + nd.get(s_attr)
-            nd.set(s_attr, s_new_value)
-        #         ctxt.xpathFreeContext()
-        return ret
-
-    add_prefix = classmethod(add_prefix)
-
-    @classmethod
-    def rm_prefix(cls, s_prefix, nd, s_attr="id"):
-        """
-        Utility to remove a add_prefix from a certain attribute of a sub-tree.
-
-        By default works on the 'id' attribute
-
-        return the number of modified attributes
-        """
-        s_attr = s_attr.strip()
-        #         ctxt = nd.doc.xpathNewContext()
-        #         ctxt.setContextNode(nd)
-        l_nd = nd.findall(".//*[@%s]" % s_attr)
-        n = len(s_prefix)
-        ret = len(l_nd)
-        for nd in l_nd:
-            s_value = nd.get(s_attr)
-            assert s_value.startswith(s_prefix), "Prefix '%s' from attribute '@%s=%s' is missing" % (
-                s_prefix, s_attr, s_value)
-            s_new_value = s_value[n:]
-            nd.set(s_attr, s_new_value)
-
-        #         ctxt.xpathFreeContext()
-        return ret
-
     @classmethod
     def _get_metadata_nodes(cls, doc=None, dom_nd=None):
         """
@@ -312,7 +150,9 @@ class PageXml:
         return a 4-tuple:
             DOM nodes of Metadata, Creator, Created, Last_Change, Comments (or None if no comments)
         """
-        assert doc is None or dom_nd is None, "Internal error: pass either a DOM or a Metadata node"  # XOR
+        # TODO: Changed assert, s.t. it is checked if doc and dom_nd are None -> check!
+        assert doc is None or dom_nd is None or (doc is None and dom_nd is None), \
+            "Internal error: pass either a DOM or a Metadata node"  # XOR
         if doc:
             l_nd = cls.get_child_by_name(doc.getroot(), cls.sMETADATA_ELT)
             if len(l_nd) != 1:
@@ -336,27 +176,161 @@ class PageXml:
         nd4 = nd3.getnext()
         if nd4 is not None:
             if etree.QName(nd4.tag).localname not in [cls.sCOMMENTS_ELT, cls.sTranskribusMetadata_ELT]:
-                raise ValueError("PageXMl mal-formed Metadata: LastChange element must be 3rd element")
+                raise ValueError("PageXMl mal-formed Metadata: Comments element must be 4th element")
         return dom_nd, nd1, nd2, nd3, nd4
+
+    # =========== XML STUFF ===========
+    @classmethod
+    def get_child_by_name(cls, elt, s_child_name):
+        """
+        look for all child elements having that name in PageXml namespace!!!
+            Example: lNd = PageXMl.get_child_by_name(elt, "Baseline")
+        return a DOM node
+        """
+        # return elt.findall(".//{%s}:%s"%(cls.NS_PAGE_XML,s_child_name))
+        return elt.xpath(".//pc:%s" % s_child_name, namespaces={"pc": cls.NS_PAGE_XML})
+
+    @classmethod
+    def get_ancestor_by_name(cls, elt, s_name):
+        return elt.xpath("ancestor::pc:%s" % s_name, namespaces={"pc": cls.NS_PAGE_XML})
+
+    @classmethod
+    def get_child_by_id(cls, elt, id):
+        """
+        look for all child elements having that id
+            Example: lNd = PageXMl.get_child_by_id(elt, "tl_2")
+        return a DOM node
+        """
+        return elt.xpath(".//*[@id='%s']" % id)
+
+    @classmethod
+    def get_ancestor_by_id(cls, elt, id):
+        """
+        look for all ancestor elements having that id
+            Example: lNd = PageXMl.get_ancestor_by_name(elt, "tl_2")
+        return a DOM node
+        """
+        return elt.xpath("ancestor::*[@id='%s']" % id)
+
+    @classmethod
+    def get_custom_attr(cls, nd, s_attr_name, s_sub_attr_name=None):
+        """
+        Read the custom attribute, parse it, and extract the 1st or 1st and 2nd key value
+        e.g. get_custom_attr(nd, "structure", "type")     -->  "catch-word"
+        e.g. get_custom_attr(nd, "structure")             -->  {'type':'catch-word', "toto", "tutu"}
+        return a dictionary if no 2nd key provided, or a string if 1st and 2nd key provided
+        Raise KeyError if one of the attribute does not exist
+        """
+        ddic = cls.parse_custom_attr(nd.get(cls.sCUSTOM_ATTR))
+
+        # First key
+        try:
+            dic2 = ddic[s_attr_name]
+            if s_sub_attr_name:
+                return dic2[s_sub_attr_name]
+            else:
+                return dic2
+        except KeyError as e:
+            raise PageXmlException("node %s: %s and %s not found in %s" % (nd, s_attr_name, s_sub_attr_name, ddic))
+
+    @classmethod
+    def set_custom_attr(cls, nd, s_attr_name, s_sub_attr_name, s_val):
+        """
+        Change the custom attribute by setting the value of the 1st+2nd key in the DOM
+        return the value
+        Raise KeyError if one of the attributes does not exist
+        """
+        if s_val is None:
+            return None
+        ddic = cls.parse_custom_attr(nd.get(cls.sCUSTOM_ATTR))
+        try:
+            ddic[s_attr_name][s_sub_attr_name] = str(s_val)
+        except KeyError:
+            ddic[s_attr_name] = dict()
+            ddic[s_attr_name][s_sub_attr_name] = str(s_val)
+
+        sddic = cls.format_custom_attr(ddic)
+        nd.set(cls.sCUSTOM_ATTR, sddic)
+        return s_val
+
+    @classmethod
+    def parse_custom_attr(cls, s):
+        """
+        The custom attribute contains data in a CSS style syntax.
+        We parse this syntax here and return a dictionary of dictionaries
+
+        Example:
+        parse_custom_attr( "readingOrder {index:4;} structure {type:catch-word;}" )
+            --> { 'readingOrder': { 'index':'4' }, 'structure':{'type':'catch-word'} }
+        """
+        custom_dict = {}
+        sheet = cssutils.parseString(s)
+        for rule in sheet:
+            selector = rule.selectorText
+            prop_dict = {}
+            for prop in rule.style:
+                prop_dict[prop.name] = prop.value
+            custom_dict[selector] = prop_dict
+
+        return custom_dict
+
+    @classmethod
+    def format_custom_attr(cls, ddic):
+        """
+        Format a dictionary of dictionaries in string format in the "custom attribute" syntax
+        e.g. custom="readingOrder {index:1;} structure {type:heading;}"
+        """
+        s = ""
+        for k1, d2 in ddic.items():
+            if s:
+                s += " "
+            s += "%s" % k1
+            s2 = ""
+            for k2, v2 in d2.items():
+                if s2:
+                    s2 += " "
+                s2 += "%s:%s;" % (k2, v2)
+            s += " {%s}" % s2
+        return s
+
+    @classmethod
+    def get_text_equiv(cls, nd):
+        textequiv = cls.get_child_by_name(nd, "TextEquiv")
+        if not textequiv:
+            return ''
+        text = cls.get_child_by_name(textequiv[0], "Unicode")
+        if not text:
+            return ''
+        return text[0].text
+
+    @classmethod
+    def make_text(cls, nd):
+        """
+        build the text of a sub-tree by considering that textual nodes are tokens to be concatenated, with a space as separator
+        NO! (JLM 2018)return None if no textual node found
+
+        return empty string if no text node found
+        """
+        return " ".join(nd.itertext())
 
     # =========== GEOMETRY ===========
     @classmethod
     def get_point_list(cls, data):
         """
         get either an XML node of a PageXml object
-              , or the content of a points attribute
-
+              , or the content of a points attribute, e.g.
+                1340,240 1696,240 1696,304 1340,304
         return the list of (x,y) of the polygon of the object - ( it is a list of int tuples)
         """
         try:
             ls_pair = data.split(' ')
         except AttributeError:
             lnd_points = data.xpath("(.//@points)[1]")
-            s_points = lnd_points[0]  # .getContent()
+            s_points = lnd_points[0]
             ls_pair = s_points.split(' ')
         l_xy = list()
-        for sPair in ls_pair:
-            (sx, sy) = sPair.split(',')
+        for s_pair in ls_pair:  # s_pair = 'x,y'
+            (sx, sy) = s_pair.split(',')
             l_xy.append((int(sx), int(sy)))
         return l_xy
 
@@ -368,26 +342,87 @@ class PageXml:
         return the content of the @points attribute
         """
         s_pairs = " ".join(["%d,%d" % (int(x), int(y)) for x, y in l_xy])
-        if nd is not None: nd.set("points", s_pairs)
+        if nd is not None:
+            nd.set("points", s_pairs)
         return s_pairs
 
+    # ======== ARTICLE STUFF =========
+
     @classmethod
-    def get_points_from_bb(cls, x1, y1, x2, y2):
+    def get_article_dict(cls, nd):
+        global article_id
+        textline_nds = cls.get_child_by_name(nd, "TextLine")
+        article_dict = {}
+        for tl in textline_nds:
+            # get article_id, baseline and text of a textline
+            try:
+                structure = cls.get_custom_attr(tl, "structure")
+                # structure = cls.get_custom_attr(tl.attrib["custom"], "structure")
+                if structure["type"] == "article":
+                    article_id = structure["id"]
+            except PageXmlException:
+                article_id = None
+            baseline = PageXml.get_child_by_name(tl, "Baseline")
+            baseline = baseline[0] if len(baseline) == 1 else None
+            if baseline is not None:
+                pt_list = cls.get_point_list(baseline)
+            else:
+                pt_list = []
+            text = cls.get_text_equiv(tl)
+            textline = TextLine(tl.get("id"), cls.parse_custom_attr(tl.get("custom")), pt_list, text)
+
+            if article_id:
+                if article_id in article_dict:
+                    article_dict[article_id].append(textline)
+                else:
+                    article_dict[article_id] = [textline]
+            else:
+                if cls.sAS_OTHER in article_dict:
+                    article_dict[cls.sAS_OTHER].append(textline)
+                else:
+                    article_dict[cls.sAS_OTHER] = [textline]
+
+        return article_dict
+
+    @classmethod
+    def get_textlines(cls, nd):
+        tl_nds = cls.get_child_by_name(nd, cls.sTEXTLINE)
+
+        return [TextLine(tl.get("id"), cls.parse_custom_attr(tl.get(cls.sCUSTOM_ATTR)),
+                         cls.get_point_list(cls.get_child_by_name(tl, cls.sBASELINE)[0]),
+                         cls.get_text_equiv(tl))
+                for tl in tl_nds]
+
+    @classmethod
+    def set_textline_attr(cls, nd, textlines):
+        """nd must be the tree node!
+
+        :param nd: DOM node
+        :param textline: list of TextLine objects
+        :type textline: list of TextLine
+        :return: None
         """
-        get the polyline of this bounding box
-        return a list of int tuples
-        """
-        return [(x1, y1), (x2, y1), (x2, y2), (x1, y2), (x1, y1)]
+        for tl in textlines:
+            tl_nd = cls.get_child_by_id(nd, tl.id)[0]
+            for k, d in tl.custom.items():
+                for k1, v1 in d.items():
+                    cls.set_custom_attr(tl_nd, k, k1, v1)
+
+            # if tl.get_article_id() is None:
+            #     continue
+            # tl_nd = cls.get_child_by_id(nd, tl.id)[0]
+            # cls.set_custom_attr(tl_nd, "structure", "id", tl.get_article_id())
+            # cls.set_custom_attr(tl_nd, "structure", "type", "article")
 
     # =========== CREATION ===========
     @classmethod
-    def create_page_xml_document(cls, creator_name='NLE', filename=None, img_w=0, img_h=0):
+    def create_page_xml_document(cls, creator_name=sCREATOR, filename=None, img_w=0, img_h=0):
         """
             create a new PageXml document
         """
         xml_page_root = etree.Element('{%s}PcGts' % cls.NS_PAGE_XML,
-                                      attrib={"{" + cls.NS_XSI + "}schemaLocation": cls.XSILOCATION},
-                                      nsmap={None: cls.NS_PAGE_XML})
+                                      attrib={"{" + cls.NS_XSI + "}schemaLocation": cls.XSILOCATION},  # schema loc.
+                                      nsmap={None: cls.NS_PAGE_XML})  # Default ns
         xml_page_doc = etree.ElementTree(xml_page_root)
 
         metadata = etree.Element('{%s}%s' % (cls.NS_PAGE_XML, cls.sMETADATA_ELT))
@@ -395,7 +430,7 @@ class PageXml:
         creator = etree.Element('{%s}%s' % (cls.NS_PAGE_XML, cls.sCREATOR_ELT))
         creator.text = creator_name
         created = etree.Element('{%s}%s' % (cls.NS_PAGE_XML, cls.sCREATED_ELT))
-        created.text = datetime.datetime.now().isoformat()
+        created.text = datetime.datetime.utcnow().isoformat() + "Z"
         last_change = etree.Element('{%s}%s' % (cls.NS_PAGE_XML, cls.sLAST_CHANGE_ELT))
         last_change.text = datetime.datetime.utcnow().isoformat() + "Z"
         metadata.append(creator)
@@ -415,13 +450,47 @@ class PageXml:
         return xml_page_doc, page_node
 
     @classmethod
-    def create_page_xml_node(cls, nodeName):
+    def create_page_xml_node(cls, node_name):
         """
             create a PageXMl element
         """
-        node = etree.Element('{%s}%s' % (cls.NS_PAGE_XML, nodeName))
+        node = etree.Element('{%s}%s' % (cls.NS_PAGE_XML, node_name))
 
         return node
+
+    @classmethod
+    def load_page_xml(cls, path_to_xml: str):
+        """Load PageXml file located at ``path_to_xml`` and return a DOM node.
+
+        :param path_to_xml: path to PageXml file
+        :return: DOM document node
+        :rtype: etree._ElementTree
+        """
+        page_doc = etree.parse(path_to_xml)
+        if not PageXml.validate(page_doc):
+            print("PageXml is not valid according to the Page schema definition {}.".format(cls.get_schema_filename))
+        return page_doc
+
+    @classmethod
+    def load_metadata_page(cls, doc_nd):
+        try:
+            return doc_nd.getroot().getchildren()
+        except AttributeError:
+            print("The doc node must be of type lxml.etree._ElementTree but is {}".format(type(doc_nd)))
+            return None
+
+    @classmethod
+    def write_page_xml(cls, save_path: str, page_doc: etree._ElementTree, creator=sCREATOR, comments=None):
+        """Save PageXml file to ``save_path``.
+
+        @:param save_path:
+        @:return: None
+        """
+        PageXml.set_metadata(page_doc, None, creator, comments)
+
+        with open(save_path, "w") as f:
+            f.write(etree.tostring(page_doc, pretty_print=True, encoding="UTF-8", standalone=True, xml_declaration=True)
+                    .decode("utf-8"))
 
 
 # =========== METADATA OF PAGEXML ===========
@@ -450,64 +519,58 @@ class Metadata:
 
 
 if __name__ == "__main__":
+    parser = ArgumentParser()
+    parser.add_argument('--path_to_xml', default='', type=str, metavar="STR",
+                        help="path to the PageXml file")
+    flags = parser.parse_args()
 
-    import sys, glob, optparse
+    page_doc = PageXml.load_page_xml(flags.path_to_xml)
 
-    usage = """%s dirname + Utility to create a set of MultipageXml XML files from a set of folders, 
-    each containing several PageXml files.""" % sys.argv[0]
+    # path_to_xml = "./test/resources/page_test.xml"
+    # page_doc = load_page_xml(path_to_xml)
 
-    parser = optparse.OptionParser(usage=usage)
+    metadata_nd, page_nd = PageXml.load_metadata_page(page_doc)
 
-    parser.add_option("--format", dest='bIndent', action="store_true"
-                      , help="reformat/reindent the input")
-    parser.add_option("--compress", dest='bCompress', action="store_true"
-                      , help="Turn on gzip compression of output")
-    parser.add_option("--ext", dest='extension', action="store", default=''
-                      , help="process only .ext ")
-    (options, args) = parser.parse_args()
+    textlines = PageXml.get_textlines(page_nd)
+    PageXml.set_textline_attr(page_nd, textlines)
 
-    try:
-        lsDir = args
-        lsDir[0]
-    except:
-        parser.print_help()
-        parser.exit(1, "")
+    # article_dict = PageXml.get_article_dict(page_nd)
 
-    print("TODO: ", lsDir)
+    # # doing some changes to the article_dict - change the third entry of the 'other' class to 'a1'
+    # tl_other_3 = article_dict[PageXml.sAS_OTHER][2]
+    # tl_other_3_id = tl_other_3.id
+    # print(tl_other_3.get_article_id())
+    # print(tl_other_3.get_reading_order())
+    #
+    # tl_other_3.set_article_id("a3")
+    # print(tl_other_3.get_article_id())
+    #
+    # nd = PageXml.get_child_by_id(page_doc, tl_other_3_id)
+    # print("Number of nodes with id {}: {}".format(tl_other_3_id, len(nd)))
+    #
+    # PageXml.set_custom_attr(nd[0], "structure", "id", tl_other_3.get_article_id())
+    PageXml.write_page_xml("./test/resources/page_xml_copy.xml", page_doc)
 
-    for sDir in lsDir:
-        if not os.path.isdir(sDir):
-            print("skipping %s (not a directory)" % sDir)
-            continue
+    # print(article_dict["a1"][0].text)
+    # print(article_dict["a1"][0].baseline)
+    # print(article_dict["a1"][0].id)
+    # print(article_dict["a1"][0].custom)
+    # print(article_dict["other"][0].custom)
+    # if "structure" not in article_dict["other"][0].custom:
+    #     article_dict["other"][0].custom["structure"] = {}
+    # article_dict["other"][0].custom["structure"]["id"] = "a1"
+    # print(article_dict["other"][0].custom)
+    # print("Baseline Text Dictionary: {}".format(article_dict))
+    #
+    # tmp = page_doc.xpath(".//*[@id='%s']" % article_dict["other"][0].id)
+    # PageXml.set_custom_attr(tmp[0], "structure", "id", article_dict["other"][0].custom["structure"]["id"])
+    # # print("TEXT: ", PageXml.get_text_equiv(tmp[0]))
+    #
+    # PageXml.write_page_xml("./test/resources/page_xml_copy.xml", page_doc)
 
-        print("Processing %s..." % sDir, )
-        if options.extension != '':
-            l = glob.glob(os.path.join(sDir, "*.%s" % options.extension))
-        else:
-            l = glob.glob(os.path.join(sDir, "*.xml"))
-            l.extend(glob.glob(os.path.join(sDir, "*.pxml")))
-            l.extend(glob.glob(os.path.join(sDir, "*.xml.gz")))
-            l.extend(glob.glob(os.path.join(sDir, "*.pxml.gz")))
-        l.sort()
-        print("   %d pages" % len(l))
-
-        doc = MultiPageXml.makeMultiPageXml(l)
-        print(MultiPageXml.validate(doc))
-        filename = sDir + ".mpxml"
-        if options.bCompress:
-            iCompress = 9
-        #             doc.setDocCompressMode(9)
-        else:
-            iCompress = 0
-        #             doc.setDocCompressMode(0)
-
-        doc.write(filename, encoding='UTF-8', xml_declaration=True, compression=iCompress)
-        #             doc.setDocCompressMode(0)
-
-        #         doc.saveFormatFileEnc(filename, "utf-8", bool(options.bIndent))
-        #         doc.freeDoc()
-        del (doc)
-
-        print("\t done: %s" % filename)
-
-    print("DONE")
+    # page_doc, page_nd = PageXml.create_page_xml_document(creator_name="Max Weidemann",
+    #                                                      filename="newimg.tif", img_w=20, img_h=20)
+    #
+    # with open("./test/resources/test.xml", "w") as f:
+    #     f.write(etree.tostring(page_doc, pretty_print=True, encoding="UTF-8", standalone=True, xml_declaration=True)
+    #             .decode("utf-8"))

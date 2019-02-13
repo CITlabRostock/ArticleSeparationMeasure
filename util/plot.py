@@ -13,7 +13,7 @@ import random
 from matplotlib.collections import PolyCollection
 from matplotlib import colors as mcolors
 from util.geometry import Polygon
-import util.PAGE as PAGE
+import util.xmlformats.PAGE as PAGE
 
 # COLORS = ['blue', 'green', 'red', 'cyan', 'magenta',
 #           'limegreen', 'darkcyan', 'lightsalomon', 'aquamarine',

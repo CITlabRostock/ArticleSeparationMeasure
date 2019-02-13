@@ -4,7 +4,7 @@ from io import open
 from scipy.stats import linregress
 
 from util.geometry import Polygon, Rectangle
-import util.PAGE as PAGE
+import util.xmlformats.PAGE as PAGE
 
 
 def load_text_file(filename):
@@ -386,7 +386,7 @@ def calc_tols(polys_truth, tick_dist=5, max_d=250, rel_tol=0.25):
 
                     # at least one point of poly_b lies in the text range of poly_a, iterate over the points
                     for p_b in zip(poly_b.x_points, poly_b.y_points):
-                        if abs(get_in_dist(p_a, p_b, or_vec_x, or_vec_y)) <= 2 * tick_dist:
+                        if -2 * tick_dist <= get_in_dist(p_a, p_b, or_vec_x, or_vec_y) <= 2 * tick_dist:
                             dist = min(dist, abs(get_off_dist(p_a, p_b, or_vec_x, or_vec_y)))
 
         # after the iteration dist is the minimum distance of poly_a to the "closest" polygonal GT chain
