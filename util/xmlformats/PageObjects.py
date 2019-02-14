@@ -1,42 +1,75 @@
 # -*- coding: utf-8 -*-
+import numpy as np
 
-class Coords:
-    def __init__(self, coords_list):
-        self.coords_list = coords_list
+from util.geometry import Polygon
 
-    def get_coords(self):
-        """Convert self.coords_list to a PageXml valid format:
+
+def polygon_to_points(poly):
+    """Convert a Polygon object ``poly`` to a Points object."""
+    x, y = poly.x_points, poly.y_points
+
+    return Points(list(zip(x, y)))
+
+
+def string_to_points(s):
+    """Convert a PageXml valid string to a list of (x,y) values."""
+
+    l_s = s.split(' ')
+    l_xy = list()
+    for s_pair in l_s:  # s_pair = 'x,y'
+        try:
+            (sx, sy) = s_pair.split(',')
+            l_xy.append((int(sx), int(sy)))
+        except ValueError:
+            print("Can't convert string '{}' to a point.".format(s_pair))
+            exit(1)
+
+    return l_xy
+
+
+class Points:
+    def __init__(self, points_list):
+        self.points_list = points_list
+
+    def to_string(self):
+        """Convert self.points_list to a PageXml valid format:
         'x1,y1 x2,y2 ... xN,yN'.
 
-        :return: PageXml valid format of coordinates.
+        :return: PageXml valid string format of coordinates.
         """
         s = ""
-        for pt in self.coords_list:
+        for pt in self.points_list:
             if s:
                 s += " "
             s += "%s,%s" % (pt[0], pt[1])
         return s
 
+    def to_polygon(self):
+        x, y = np.transpose(self.points_list)
+
+        return Polygon(x.tolist(), y.tolist(), n_points=len(x))
+
 
 class Region:
-    def __init__(self, id, custom, coords):
+    def __init__(self, id, custom, points):
         self.id = id
         self.custom = custom
-        self.coords = coords
+        self.points = points
 
 
 class TextRegion(Region):
-    def __init__(self, id, custom, coords):
-        super().__init__(id, custom, coords)
+    def __init__(self, id, custom, points):
+        super().__init__(id, custom, points)
 
 
 class TextLine:
-    def __init__(self, id, custom, baseline, text):
-        self.id = id
+    def __init__(self, id, custom=None, text=None, baseline=None, surr_p=None):
+        self.id = id  # unique id of textline (str)
         # dictionary of dictionaries, e.g. {'readingOrder':{ 'index':'4' },'structure':{'type':'catch-word'}}
-        self.custom = custom
-        self.baseline = baseline
-        self.text = text
+        self.custom = custom  # custom attr holding information like article id (dict of dicts)
+        self.baseline = Points(baseline)  # baseline of textline (Points object)
+        self.text = text  # text present in the textline
+        self.surr_p = Points(surr_p)  # surrounding polygon of textline (Points object)
 
     def get_reading_order(self):
         try:
@@ -70,5 +103,9 @@ class TextLine:
 
 if __name__ == '__main__':
     points = [(1, 2), (3, 4), (5, 6)]
-    coords = Coords(points)
-    print(coords.get_coords())
+    points = Points(points)
+    print(points.to_string())
+    poly = points.to_polygon()
+    print(poly.x_points, poly.y_points, poly.n_points)
+    points_copy = polygon_to_points(poly)
+    print(points_copy.to_string())
