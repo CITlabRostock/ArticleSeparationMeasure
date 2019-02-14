@@ -98,7 +98,7 @@ class TextLine:
             except KeyError:
                 pass
 
-    def set_article_id(self, article_id):
+    def set_article_id(self, article_id=None):
         if article_id:
             try:
                 self.custom["structure"]["id"] = str(article_id)
