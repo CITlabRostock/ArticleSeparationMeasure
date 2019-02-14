@@ -10,7 +10,12 @@ from argparse import ArgumentParser
 from util.xmlformats.PageObjects import TextLine
 
 # Make sure that the css parser for the custom attribute doesn't spam "WARNING Property: Unknown Property name."
+# Make sure that the css parser for the custom attribute doesn't spam "WARNING Property: Unknown Property name."
 cssutils.log.setLevel(logging.ERROR)
+
+logging.basicConfig(filename="./test/resources/Page.log",
+                    format="%(asctime)s:%(levelname)s:%(message)s",
+                    filemode="w")
 
 
 class PageXmlException(Exception):
@@ -60,7 +65,7 @@ class Page:
                 self.create_metadata(self.sCREATOR, comments="Metadata entry was missing, added..")
 
         if not self.validate(self.page_doc):
-            print("File given by {} is not a valid PageXml file.".format(path_to_xml))
+            logging.warning("File given by {} is not a valid PageXml file.".format(path_to_xml))
             # exit(1)
         self.metadata = self.get_metadata()
 
@@ -81,7 +86,7 @@ class Page:
         log = self.cachedValidationContext.error_log
 
         if not b_valid:
-            print(log)
+            logging.warning(log)
         return b_valid
 
     @classmethod
@@ -136,8 +141,8 @@ class Page:
         return the Metadata DOM node
         """
         nd_metadata, nd_creator, nd_created, nd_last_change, nd_comments = self._get_metadata_nodes()
-        if nd_creator.text:
-            nd_creator.text += ", changed by " + creator
+        if nd_creator.text and nd_creator.text != creator:
+            nd_creator.text += ", modified by " + creator
         # The schema seems to call for GMT date&time  (IMU)
         # ISO 8601 says:  "If the time is in UTC, add a Z directly after the time without a space. Z is the zone
         # designator for the zero UTC offset."
@@ -154,20 +159,20 @@ class Page:
         xml_page_root = self.page_doc.getroot()
 
         metadata = etree.Element('{%s}%s' % (self.NS_PAGE_XML, self.sMETADATA_ELT))
-        xml_page_root.append(metadata)
+        xml_page_root.insert(0, metadata)
         creator = etree.Element('{%s}%s' % (self.NS_PAGE_XML, self.sCREATOR_ELT))
         creator.text = creator_name
         created = etree.Element('{%s}%s' % (self.NS_PAGE_XML, self.sCREATED_ELT))
         created.text = datetime.datetime.utcnow().isoformat() + "Z"
         last_change = etree.Element('{%s}%s' % (self.NS_PAGE_XML, self.sLAST_CHANGE_ELT))
         last_change.text = datetime.datetime.utcnow().isoformat() + "Z"
-        comments = etree.Element('{%s}%s' % (self.NS_PAGE_XML, self.sCOMMENTS_ELT))
-        comments.text = comments
+        comments_nd = etree.Element('{%s}%s' % (self.NS_PAGE_XML, self.sCOMMENTS_ELT))
+        comments_nd.text = comments
 
         metadata.append(creator)
         metadata.append(created)
         metadata.append(last_change)
-        metadata.append(comments)
+        metadata.append(comments_nd)
 
         return metadata
 
@@ -256,14 +261,16 @@ class Page:
         except KeyError as e:
             raise PageXmlException("node %s: %s and %s not found in %s" % (nd, s_attr_name, s_sub_attr_name, ddic))
 
+    def set_custom_attr_from_dict(self, nd, custom_dict):
+        nd.set(self.sCUSTOM_ATTR, self.format_custom_attr(custom_dict))
+        return nd
+
     def set_custom_attr(self, nd, s_attr_name, s_sub_attr_name, s_val):
         """
         Change the custom attribute by setting the value of the 1st+2nd key in the DOM
         return the value
         Raise KeyError if one of the attributes does not exist
         """
-        if s_val is None:
-            return None
         ddic = self.parse_custom_attr(nd.get(self.sCUSTOM_ATTR))
         try:
             ddic[s_attr_name][s_sub_attr_name] = str(s_val)
@@ -274,6 +281,13 @@ class Page:
         sddic = self.format_custom_attr(ddic)
         nd.set(self.sCUSTOM_ATTR, sddic)
         return s_val
+
+    def remove_custom_attr(self, nd, s_attr_name, s_sub_attr_name):
+        ddic = self.parse_custom_attr(nd.get(self.sCUSTOM_ATTR))
+        if s_attr_name in ddic and s_sub_attr_name in ddic[s_attr_name]:
+            ddic[s_attr_name].pop(s_sub_attr_name)
+        else:
+            print("Can't remove {} from {} in {}.".format(s_sub_attr_name, s_attr_name, ddic))
 
     @staticmethod
     def parse_custom_attr(s):
@@ -424,9 +438,14 @@ class Page:
         """
         for tl in textlines:
             tl_nd = self.get_child_by_id(self.page_doc, tl.id)[0]
-            for k, d in tl.custom.items():
-                for k1, v1 in d.items():
-                    self.set_custom_attr(tl_nd, k, k1, v1)
+            self.set_custom_attr_from_dict(tl_nd, tl.custom)
+            # for k, d in tl.custom.items():
+            #     for k1, v1 in d.items():
+            #         if v1 is None:
+            #             self.remove_custom_attr(tl_nd, k, k1)
+            #             break
+            #         else:
+            #             self.set_custom_attr(tl_nd, k, k1, v1)
 
             # if tl.get_article_id() is None:
             #     continue
@@ -496,15 +515,11 @@ class Page:
         :return: DOM document node
         :rtype: etree._ElementTree
         """
-        page_doc = etree.parse(path_to_xml)
+        page_doc = etree.parse(path_to_xml, etree.XMLParser(remove_blank_text=True))
         if not self.validate(page_doc):
-            print("PageXml is not valid according to the Page schema definition {}.".format(self.get_schema_filename))
+            logging.warning("PageXml is not valid according to the Page schema definition {}.".format(self.XSILOCATION))
 
         return page_doc
-
-    # TODO: Necessary?
-    def load_metadata_page(self):
-        return self.page_doc.getroot().getchildren()
 
     def write_page_xml(self, save_path, creator=sCREATOR, comments=None):
         """Save PageXml file to ``save_path``.
@@ -551,12 +566,21 @@ if __name__ == "__main__":
     flags = parser.parse_args()
 
     page = Page(flags.path_to_xml)
+
     textlines = page.get_textlines()
-    # set all textline article ids to "a1"
-    # textline attrs are changed via id -> for now adding textlines is not supported!
     for tl in textlines:
-        tl.set_article_id("a1")
-        # print(tl.baseline.points_list)
-        print(tl.surr_p.to_polygon().x_points)
+        if tl.get_article_id() is not None:
+            tl.set_article_id(None)
     page.set_textline_attr(textlines)
-    page.write_page_xml("./test/resources/page_xml_copy.xml")
+
+    page.write_page_xml("./test/resources/page_xml_no_meta_copy.xml")
+
+    # textlines = page.get_textlines()
+    # # set all textline article ids to "a1"
+    # # textline attrs are changed via id -> for now adding textlines is not supported!
+    # for tl in textlines:
+    #     tl.set_article_id("a1")
+    #     # print(tl.baseline.points_list)
+    #     print(tl.surr_p.to_polygon().x_points)
+    # page.set_textline_attr(textlines)
+    # page.write_page_xml("./test/resources/page_xml_copy.xml")

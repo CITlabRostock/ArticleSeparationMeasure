@@ -549,7 +549,7 @@ if __name__ == "__main__":
     # print("Number of nodes with id {}: {}".format(tl_other_3_id, len(nd)))
     #
     # PageXml.set_custom_attr(nd[0], "structure", "id", tl_other_3.get_article_id())
-    PageXml.write_page_xml("./test/resources/page_xml_copy.xml", page_doc)
+    PageXml.write_page_xml("./test/resources/page_xml_no_meta.xml", page_doc)
 
     # print(article_dict["a1"][0].text)
     # print(article_dict["a1"][0].baseline)

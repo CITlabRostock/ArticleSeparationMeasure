@@ -86,19 +86,31 @@ class TextLine:
             return None
 
     def set_reading_order(self, reading_order):
-        try:
-            self.custom["readingOrder"]["index"] = str(reading_order)
-        except KeyError:
-            self.custom["readingOrder"] = {}
-            self.custom["readingOrder"]["index"] = str(reading_order)
+        if reading_order:
+            try:
+                self.custom["readingOrder"]["index"] = str(reading_order)
+            except KeyError:
+                self.custom["readingOrder"] = {}
+                self.custom["readingOrder"]["index"] = str(reading_order)
+        else:
+            try:
+                self.custom.pop("readingOrder")
+            except KeyError:
+                pass
 
     def set_article_id(self, article_id):
-        try:
-            self.custom["structure"]["id"] = str(article_id)
-        except KeyError:
-            self.custom["structure"] = {}
-            self.custom["structure"]["id"] = str(article_id)
-        self.custom["structure"]["type"] = "article"
+        if article_id:
+            try:
+                self.custom["structure"]["id"] = str(article_id)
+            except KeyError:
+                self.custom["structure"] = {}
+                self.custom["structure"]["id"] = str(article_id)
+            self.custom["structure"]["type"] = "article"
+        else:
+            try:
+                self.custom.pop("structure")
+            except KeyError:
+                pass
 
 
 if __name__ == '__main__':
