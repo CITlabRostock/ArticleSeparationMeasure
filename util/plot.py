@@ -19,7 +19,11 @@ import util.xmlformats.PAGE as PAGE
 #           'limegreen', 'darkcyan', 'lightsalomon', 'aquamarine',
 #           'purple', 'darkkhaki', 'brown', 'gold']
 
+
+DEFAULT_COLOR = 'b'
+
 BASECOLORS = mcolors.BASE_COLORS
+BASECOLORS.pop(DEFAULT_COLOR)
 COLORS = dict(BASECOLORS, **mcolors.CSS4_COLORS)
 by_hsv = sorted((tuple(mcolors.rgb_to_hsv(mcolors.to_rgba(color)[:3])), name)
                 for name, color in COLORS.items())
@@ -27,8 +31,6 @@ COLORS_SORTED = [name for hsv, name in by_hsv]
 SEED = 500
 random.seed(SEED)
 random.shuffle(COLORS_SORTED)
-
-DEFAULT_COLOR = 'grey'
 
 
 # Two interfaces supported by matplotlib:

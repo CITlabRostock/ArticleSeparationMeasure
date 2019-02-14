@@ -53,6 +53,12 @@ class Page:
     def __init__(self, path_to_xml=None, creator_name=sCREATOR, img_filename=None, img_w=None, img_h=None):
         self.page_doc = self.load_page_xml(path_to_xml) if path_to_xml is not None else self.create_page_xml_document(
             creator_name, img_filename, img_w, img_h)
+        if len(self.page_doc.getroot().getchildren()) != 2:
+            elts = self.page_doc.getroot().getchildren()
+            # if Metadata node is missing, add it
+            if self.sMETADATA_ELT not in [elt.tag for elt in elts]:
+                self.create_metadata(self.sCREATOR, comments="Metadata entry was missing, added..")
+
         if not self.validate(self.page_doc):
             print("File given by {} is not a valid PageXml file.".format(path_to_xml))
             # exit(1)
@@ -130,7 +136,8 @@ class Page:
         return the Metadata DOM node
         """
         nd_metadata, nd_creator, nd_created, nd_last_change, nd_comments = self._get_metadata_nodes()
-        nd_creator.text = creator
+        if nd_creator.text:
+            nd_creator.text += ", changed by " + creator
         # The schema seems to call for GMT date&time  (IMU)
         # ISO 8601 says:  "If the time is in UTC, add a Z directly after the time without a space. Z is the zone
         # designator for the zero UTC offset."
@@ -142,6 +149,27 @@ class Page:
                 nd_comments = etree.SubElement(nd_metadata, self.sCOMMENTS_ELT)
             nd_comments.text = comments
         return nd_metadata
+
+    def create_metadata(self, creator_name=sCREATOR, comments=None):
+        xml_page_root = self.page_doc.getroot()
+
+        metadata = etree.Element('{%s}%s' % (self.NS_PAGE_XML, self.sMETADATA_ELT))
+        xml_page_root.append(metadata)
+        creator = etree.Element('{%s}%s' % (self.NS_PAGE_XML, self.sCREATOR_ELT))
+        creator.text = creator_name
+        created = etree.Element('{%s}%s' % (self.NS_PAGE_XML, self.sCREATED_ELT))
+        created.text = datetime.datetime.utcnow().isoformat() + "Z"
+        last_change = etree.Element('{%s}%s' % (self.NS_PAGE_XML, self.sLAST_CHANGE_ELT))
+        last_change.text = datetime.datetime.utcnow().isoformat() + "Z"
+        comments = etree.Element('{%s}%s' % (self.NS_PAGE_XML, self.sCOMMENTS_ELT))
+        comments.text = comments
+
+        metadata.append(creator)
+        metadata.append(created)
+        metadata.append(last_change)
+        metadata.append(comments)
+
+        return metadata
 
     def _get_metadata_nodes(self):
         """
@@ -213,7 +241,10 @@ class Page:
         return a dictionary if no 2nd key provided, or a string if 1st and 2nd key provided
         Raise KeyError if one of the attribute does not exist
         """
-        ddic = self.parse_custom_attr(nd.get(self.sCUSTOM_ATTR))
+        c_node = nd.get(self.sCUSTOM_ATTR)
+        if c_node is None:
+            return None
+        ddic = self.parse_custom_attr(c_node)
 
         # First key
         try:
@@ -254,6 +285,8 @@ class Page:
         parse_custom_attr( "readingOrder {index:4;} structure {type:catch-word;}" )
             --> { 'readingOrder': { 'index':'4' }, 'structure':{'type':'catch-word'} }
         """
+        if not s:
+            return {}
         custom_dict = {}
         sheet = cssutils.parseString(s)
         for rule in sheet:
