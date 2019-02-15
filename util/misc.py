@@ -3,6 +3,7 @@ from io import open
 
 import util.linear_regression as lin_reg
 from util.geometry import Polygon, Rectangle
+from util.xmlformats.Page import Page
 
 
 def load_text_file(filename):
@@ -98,25 +99,32 @@ def get_article_polys_from_file(poly_file_name):
     """
 
     # TODO: Bool return value necessary? -> Just check if returned list is None (then you know if it was skipped or not)
-    poly_strings = load_text_file(poly_file_name)
-    if len(poly_strings) == 0:
-        return None, False
-    poly_strings.append("\n")
+    if poly_file_name.endswith(".txt"):
+        poly_strings = load_text_file(poly_file_name)
+        if len(poly_strings) == 0:
+            return None, False
+        poly_strings.append("\n")
 
-    res = []
-    article_polys = []
-    for poly_string in poly_strings:
-        if poly_string == "\n":
-            res.append(article_polys)
-            article_polys = []
-        else:
-            try:
-                poly = string_to_poly(str(poly_string))
-                article_polys.append(poly)
-            except ValueError:
-                return None, True
+        res = []
+        article_polys = []
+        for poly_string in poly_strings:
+            if poly_string == "\n":
+                res.append(article_polys)
+                article_polys = []
+            else:
+                try:
+                    poly = string_to_poly(str(poly_string))
+                    article_polys.append(poly)
+                except ValueError:
+                    return None, True
 
-    return res, False
+        return res, False
+    if poly_file_name.endswith(".xml"):
+        # TODO: add try except -> which kind of exception can occur?
+        page = Page(poly_file_name)
+        ad = page.get_article_dict()
+        res = [a_polys for a_polys in ad.values()]
+        return res, False
 
 
 def blow_up(polygon):
