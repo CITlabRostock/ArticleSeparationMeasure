@@ -4,7 +4,7 @@ from io import open
 from scipy.stats import linregress
 
 from util.geometry import Polygon, Rectangle
-import util.xmlformats.PAGE as PAGE
+from util.xmlformats.Page import Page
 
 
 def load_text_file(filename):
@@ -88,23 +88,12 @@ def get_polys_from_file(poly_file_name):
                 return None, True
         return res, False
     elif poly_file_name.endswith(".xml"):
-        try:
-            page = PAGE.parse_file(poly_file_name)
-        except ValueError:
-            return None, True
-        # TODO: Implement a method that sorts the textregions according to the reading order
-        res = []
-        for tr in page.text_regions:
-            # sort text lines according to the y-values (from top to bottom)
-            tr.sort_text_lines()
-            for tl in tr.text_lines:
-                # bl is a list of "Point" objects
-                bl = tl.baseline
-                # bl is a list of shape (N,2)
-                bl = np.array(PAGE.Point.point_to_list(bl))
-                poly = Polygon(*bl.transpose().tolist(), n_points=len(bl))
+        # TODO: Implement a method that sorts the textlines/textregions according to the reading order
+        # TODO: catch exceptions -> which kind of exception can occur?
+        page = Page(poly_file_name)
+        text_lines = page.get_textlines()
+        res = [tl.baseline.to_polygon() for tl in text_lines]
 
-                res.append(poly)
         return res, False
 
 

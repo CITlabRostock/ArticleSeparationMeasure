@@ -14,9 +14,9 @@ def run_eval(truth_file, reco_file, min_tol, max_tol, threshold_tf):
     # Parse input to create truth and reco baseline polygon lists
     list_truth = []
     list_reco = []
-    if truth_file.endswith(".txt"):
+    if truth_file.endswith((".txt", ".xml")):
         list_truth.append(truth_file)
-    if reco_file.endswith(".txt"):
+    if reco_file.endswith((".txt", ".xml")):
         list_reco.append(reco_file)
     if truth_file.endswith(".lst") and reco_file.endswith(".lst"):
         try:
