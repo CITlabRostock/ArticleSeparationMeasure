@@ -1,9 +1,8 @@
 """ DBSCAN based on Chris McCormicks "https://github.com/chrisjmccormick/dbscan" """
 
 import math
-import collections
-import time
 import jpype
+import collections
 
 import util.geometry as geometry
 from util.misc import calc_reg_line_stats, get_dist_fast, get_in_dist, get_off_dist, norm_poly_dists
@@ -49,7 +48,6 @@ class DBSCANBaselines:
 
         # call java code to calculate the interline distances
         if use_java_code:
-            jpype.startJVM(jpype.getDefaultJVMPath())
             java_object = jpype.JPackage("util.Java_Util").JavaClass()
 
             list_of_nomred_polygon_java = []
@@ -61,7 +59,6 @@ class DBSCANBaselines:
                 java_object.calcInterlineDistances(list_of_nomred_polygon_java, des_dist, self.max_d)
 
             self.list_of_interline_distances = list(list_of_interline_distances_java)
-            jpype.shutdownJVM()
 
         # call python code to calculate the interline distances
         else:
@@ -75,8 +72,7 @@ class DBSCANBaselines:
         self.list_of_labels = [0] * len(self.list_of_normed_polygons)
         self.list_if_center = [False] * len(self.list_of_normed_polygons)
 
-        print("Initialization finished\n\n"
-              "Number of (detected) baselines contained by the image: {}\n".format(len(self.list_of_normed_polygons)))
+        print("Number of (detected) baselines contained by the image: {}".format(len(self.list_of_normed_polygons)))
 
     def clustering_polygons(self):
         """ clustering the polygons with DBSCAN based approach """
@@ -105,12 +101,6 @@ class DBSCANBaselines:
 
                 # build the cluster
                 DBSCANBaselines.grow_cluster(self, polygon_index, neighbor_polygons, label)
-
-                progress = float(sum(label is not 0 for label in self.list_of_labels)) / \
-                           float(number_of_all_polygons) * 100
-                print("Clustering progress in %: {:.2f}".format(progress))
-
-        print("Clustering progress in %: 100.00\n")
 
     def grow_cluster(self, polygon_index, neighbor_polygons, this_label):
         """ grow a new cluster with label "label" from a center polygon with index "polygon_index"
@@ -214,7 +204,7 @@ class DBSCANBaselines:
     def get_cluster_of_polygons(self):
         """ calculate the cluster labels for the polygons
 
-        :return: dictionary {ID of the article: list with the corresponding tuples ("String", Polygon)}
+        :return: list with article labels for each polygon
         """
         # articles with less than "min_polygons_for_article" polygons belong to the "noise" class
         counter_dict = collections.Counter(self.list_of_labels)
@@ -223,21 +213,10 @@ class DBSCANBaselines:
             if counter_dict[label] < self.min_polygons_for_article and label != -1:
                 self.list_of_labels = [-1 if x == label else x for x in self.list_of_labels]
 
-        cluster_dict = {"other": []}
+        counter_dict = collections.Counter(self.list_of_labels)
+        print("Number of detected articles (inclusive the \"noise\" class): {}\n".format(len(counter_dict)))
 
-        for polygon_index, tpl in enumerate(self.data):
-            polygon_label = self.list_of_labels[polygon_index]
-
-            if polygon_label == -1:
-                cluster_dict["other"].append(tpl)
-            elif "a" + str(polygon_label) in cluster_dict:
-                cluster_dict["a" + str(polygon_label)].append(tpl)
-            else:
-                cluster_dict.update({"a" + str(polygon_label): [tpl]})
-
-        print("Number of detected articles (inclusive the \"noise\" class): {}\n".format(len(cluster_dict)))
-
-        return cluster_dict
+        return self.list_of_labels
 
     def calc_interline_dist(self, tick_dist=5, max_d=250):
         """ calculate interline distance values for every (normed!) polygon according to

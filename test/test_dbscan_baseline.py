@@ -1,257 +1,111 @@
 # -*- coding: utf-8 -*-
 
-import os
-import time
-import random
-import pickle
-from random import shuffle
-import util.PAGE as PAGE
-import util.dbscan_baseline
-import matplotlib.pyplot as plt
-from matplotlib import colors as mcolors
-from util.plot import add_baselines, add_image
+import jpype
+
+from util.xmlformats import Page
+from util import dbscan_baseline
 
 
-BASECOLORS = mcolors.BASE_COLORS
-COLORS = dict(BASECOLORS, **mcolors.CSS4_COLORS)
-by_hsv = sorted((tuple(mcolors.rgb_to_hsv(mcolors.to_rgba(color)[:3])), name)
-                for name, color in COLORS.items())
-COLORS_SORTED = [name for hsv, name in by_hsv]
-SEED = 501
-random.seed(SEED)
-random.shuffle(COLORS_SORTED)
+def get_data_from_pagexml(path_to_pagexml, print_log=True):
+    """
 
-DEFAULT_COLOR = 'grey'
+    :param path_to_pagexml: file path
+    :return: a list of tuples (text of text line, baseline of text line)
+    """
+    # load the page xml file
+    page_file = Page.Page(path_to_pagexml, print_log=print_log)
+    # get all text lines of the loaded page file
+    list_of_txt_lines = page_file.get_textlines()
 
-# black is the color for the "other" class (first entry in the "colors" list)
-colors = ["black", "darkgreen", "red", "darkviolet", "darkblue",
-          "gold", "darkorange", "brown", "yellowgreen", "darkcyan"]
+    list_of_text = []
+    list_of_polygons = []
 
-for color in COLORS_SORTED:
-    if color not in colors:
-        colors.append(color)
+    for txt_line in list_of_txt_lines:
+        # get the text of the text line
+        list_of_text.append(txt_line.text)
+        # get the baseline of the text line as polygon
+        list_of_polygons.append(txt_line.baseline.to_polygon())
 
+    list_of_tuples = [(list_of_text[i], list_of_polygons[i]) for i in range(len(list_of_text))]
 
-def write_txt_from_gtxml(directory_path, other=False):
-    """ extract a txt file from the page xml's (ground truth) in a given directory """
-
-    list_of_all_filenames = []
-
-    # get all xml files in the given directotry
-    for filename in os.listdir(directory_path):
-        list_of_all_filenames.append(filename)
-
-    list_of_all_filenames.sort()
-    file_path_txt_object = open(directory_path.replace("xml_files_gt", "txt_files_gt") + "truth.lst", "w")
-
-    for filename in list_of_all_filenames:
-        page = PAGE.parse_file(directory_path + filename)
-        result_dict = page.get_baseline_text_dict()
-
-        storing_path = directory_path.replace("xml_files_gt", "txt_files_gt") + filename[:-3] + "txt"
-        file_path_txt_object.write(storing_path + "\n")
-
-        txt_to_write = ""
-
-        for article_id in result_dict:
-            # we don't want to consider the "other" class in the evaluation
-            if not other:
-                if article_id == "other":
-                    continue
-
-            for tpl in result_dict[article_id]:
-                string_to_write = ""
-                x_points = tpl[1].x_points
-                y_points = tpl[1].y_points
-
-                for index, x in enumerate(x_points):
-                    if string_to_write == "":
-                        string_to_write += str(x) + "," + str(y_points[index])
-                    else:
-                        string_to_write += ";" + str(x) + "," + str(y_points[index])
-
-                txt_to_write += string_to_write + "\n"
-
-            # blank line to sepearte the articles in the txt file
-            txt_to_write += "\n"
-
-        txt_object = open(storing_path, "w")
-        txt_object.write(txt_to_write[:-2])
+    return list_of_tuples
 
 
-def save_results(result_dict, storing_path_dict, storing_path_txt, image_name, other=False):
-    """ save the results of the AS algorithm """
+def save_results_in_pagexml(path_to_pagexml, list_of_txt_line_labels):
+    """
 
-    list_of_articles = []
-    txt_to_write = ""
+    :param path_to_pagexml:
+    :param list_of_txt_line_labels:
+    """
+    page_file = Page.Page(path_to_pagexml)
+    # get all text lines of the loaded page file
+    list_of_txt_lines = page_file.get_textlines()
 
-    for article_id in result_dict:
+    for txt_line_index, txt_line in enumerate(list_of_txt_lines):
+        if list_of_txt_line_labels[txt_line_index] == -1:
+            continue
+        txt_line.set_article_id("a" + str(list_of_txt_line_labels[txt_line_index]))
 
-        # storing the pkl file
-        added_article = []
-        for tpl in result_dict[article_id]:
-            added_article.append([tpl[1].x_points, tpl[1].y_points])
-
-        # "other" class has to be the first article in this list
-        if article_id == "other":
-            list_of_articles.insert(0, added_article)
-        else:
-            list_of_articles.append(added_article)
-
-        # storing the txt file
-        # we don't want to consider the "other" class in the evaluation
-        if not other:
-            if article_id == "other":
-                continue
-
-        for tpl in result_dict[article_id]:
-            string_to_write = ""
-            x_points = tpl[1].x_points
-            y_points = tpl[1].y_points
-
-            for index, x in enumerate(x_points):
-                if string_to_write == "":
-                    string_to_write += str(x) + "," + str(y_points[index])
-                else:
-                    string_to_write += ";" + str(x) + "," + str(y_points[index])
-
-            txt_to_write += string_to_write + "\n"
-
-        # blank line to sepearte the articles in the txt file
-        txt_to_write += "\n"
-
-    # storing the pkl file
-    with open(storing_path_dict + image_name + '.pkl', 'wb') as saver:
-        pickle.dump(list_of_articles, saver, protocol=pickle.HIGHEST_PROTOCOL)
-
-    # # storing the txt file
-    # txt_object = open(storing_path_txt + image_name + ".txt", "w")
-    # txt_object.write(txt_to_write[:-2])
-    #
-    # # create hypo.lst file
-    # list_of_all_filenames = []
-    #
-    # # get all xml files in the given directotry
-    # for filename in os.listdir("./test/resources/newseye_as_test_data/xml_files_gt/"):
-    #     list_of_all_filenames.append(filename)
-    #
-    # list_of_all_filenames.sort()
-    # file_path_txt_object = open(storing_path_txt + "hypo.lst", "w")
-    #
-    # for filename in list_of_all_filenames:
-    #     storing_path = storing_path_txt + filename[:-3] + "txt"
-    #     file_path_txt_object.write(storing_path + "\n")
+    page_file.set_textline_attr(list_of_txt_lines)
+    page_file.write_page_xml(path_to_pagexml)
 
 
-def plot_results(path_gt, path_hy, path_image):
-    """ plot the results of the AS algorithm in comparision with the GT """
+def cluster_baselines_dbscan(data, min_polygons_for_cluster=2, des_dist=5, max_d=50, min_polygons_for_article=3,
+                             rectangle_ratio=1 / 5, rectangle_interline_factor=3 / 2,
+                             bounding_box_epsilon=5, min_intersect_ratio=3 / 5,
+                             use_java_code=True):
+    """
 
-    # plot the GT data
-    page = PAGE.parse_file(path_gt)
-    gt_dict = page.get_baseline_text_dict()
+    :param data: list of tuples ("String", Polygon) as the dataset
+    :param min_polygons_for_cluster: minimum number of required polygons forming a cluster
+    :param des_dist: desired distance (measured in pixels) of two adjacent pixels in the normed polygons
+    :param max_d: maximum distance (measured in pixels) for the calculation of the interline distances
+    :param min_polygons_for_article: minimum number of required polygons forming an article
 
-    gt = []
-    for article_id in gt_dict:
+    :param rectangle_ratio: ratio between the width and the height of the rectangles
+    :param rectangle_interline_factor: multiplication factor to calculate the height of the rectangles with the help
+                                           of the interline distances
+    :param bounding_box_epsilon: additional width and height value to calculate the bounding boxes of the polygons
+                                 during the clustering progress
+    :param min_intersect_ratio: minimum threshold for the intersection being necessary to determine, whether two
+                                polygons are clustered together or not
 
-        added_article = []
-        for tpl in gt_dict[article_id]:
-            added_article.append([tpl[1].x_points, tpl[1].y_points])
+    :param use_java_code: usage of methods written in java or not
+    :return: list with article labels for each data tuple (i.e. for each text line)
+    """
+    # initialization of the clustering algorithm object
+    cluster_object \
+        = dbscan_baseline.DBSCANBaselines \
+        (data, min_polygons_for_cluster=min_polygons_for_cluster, des_dist=des_dist, max_d=max_d,
+         min_polygons_for_article=min_polygons_for_article, rectangle_ratio=rectangle_ratio,
+         rectangle_interline_factor=rectangle_interline_factor, bounding_box_epsilon=bounding_box_epsilon,
+         min_intersect_ratio=min_intersect_ratio, use_java_code=use_java_code)
 
-        # "other" class has to be the first article in this list
-        if article_id == "other":
-            gt.insert(0, added_article)
-        else:
-            gt.append(added_article)
+    # AS algorithm based on DBSCAN
+    cluster_object.clustering_polygons()
+    article_list = cluster_object.get_cluster_of_polygons()
 
-    ax = plt.subplot(1, 2, 1)
-    plt.title('Ground Truth')
-    add_image(ax, path_image)
-
-    for index, article_baselines in enumerate(gt):
-        add_baselines(ax, article_baselines, color=colors[index])
-
-    # plot the results of the AS algorithm
-    with open(path_hy, 'rb') as loader:
-        hypo = pickle.load(loader)
-
-        ax = plt.subplot(1, 2, 2)
-        plt.title('Hypotheses')
-        add_image(ax, path_image)
-
-        for index, article_baselines in enumerate(hypo):
-            add_baselines(ax, article_baselines, color=colors[index])
-
-    plt.show()
+    return article_list
 
 
 if __name__ == '__main__':
+    jpype.startJVM(jpype.getDefaultJVMPath())
 
-    # write_txt_from_gtxml("./test/resources/newseye_as_test_data/xml_files_gt/", other=False)
+    image_paths = [line.rstrip('\n') for line in open("./test/resources/newseye_as_test_data/image_paths.txt", "r")]
+    gt_pagexml_paths = [line.rstrip('\n') for line in
+                        open("./test/resources/newseye_as_test_data/gt_xml_paths.txt", "r")]
+    hy_pagexml_paths = [line.rstrip('\n') for line in
+                        open("./test/resources/newseye_as_test_data/hy_xml_paths.txt", "r")]
 
-    COMPUTE_AS = True
-    PLOT_GRAPHIC = True
+    for path_to_hypo_file in hy_pagexml_paths:
+        data = get_data_from_pagexml(path_to_hypo_file, print_log=False)
 
-    prefix = './test/resources/newseye_as_test_data/'
+        article_id_list = \
+            cluster_baselines_dbscan(data, min_polygons_for_cluster=2, des_dist=5, max_d=50, min_polygons_for_article=3,
+                                     rectangle_ratio=1 / 5, rectangle_interline_factor=3 / 2,
+                                     bounding_box_epsilon=5, min_intersect_ratio=3 / 5,
+                                     use_java_code=True)
 
-    # newspaper france1
-    image_name = '19000715_1-0001'
-    # image_name = '19000715_1-0002'
-    # image_name = '19000715_1-0003'
-    path_to_img = prefix + "image_files/" + image_name + ".jpg"
+        save_results_in_pagexml(path_to_hypo_file, article_id_list)
 
-    # newspaper france2
-    # image_name = '19420115_1-0001'
-    # image_name = '19420115_1-0002'
-    # image_name = '19420115_1-0003'
-    # path_to_img = prefix + "image_files/" + image_name + ".jpg"
-
-    # newspaper zuerich
-    # image_name = '0033_nzz_18120804_0_0_a1_p1_1'
-    # image_name = '0034_nzz_18130618_0_0_a1_p1_1'
-    # image_name = '0035_nzz_18141004_0_0_a1_p1_1'
-    # image_name = '0036_nzz_18150131_0_0_a1_p1_1'
-    # path_to_img = prefix + "image_files/" + image_name + ".tif"
-
-    if COMPUTE_AS:
-        t = time.time()
-
-        path_to_hy_pagexml = prefix + "xml_files_hy/" + image_name + ".xml"
-        page = PAGE.parse_file(path_to_hy_pagexml)
-        article_dict = page.get_baseline_text_dict()
-        baselines_hyp_polygon_not_normed = article_dict["other"]
-
-        shuffle(baselines_hyp_polygon_not_normed)
-
-        # Initialization of the Clustering - france newspaper
-        dbscan_object \
-            = util.dbscan_baseline.DBSCANBaselines \
-            (baselines_hyp_polygon_not_normed,
-             min_polygons_for_cluster=2, des_dist=5, max_d=50, min_polygons_for_article=3,
-             rectangle_ratio=1 / 5, rectangle_interline_factor=4 / 2,
-             bounding_box_epsilon=5, min_intersect_ratio=2 / 5,
-             use_java_code=True)
-
-        # # Initialization of the Clustering - zuerich newspaper
-        # dbscan_object \
-        #     = util.dbscan_baseline.DBSCANBaselines \
-        #     (baselines_hyp_polygon_not_normed,
-        #      min_polygons_for_cluster=2, des_dist=5, max_d=50, min_polygons_for_article=3,
-        #      rectangle_ratio=1 / 5, rectangle_interline_factor=3 / 2,
-        #      bounding_box_epsilon=5, min_intersect_ratio=3 / 5,
-        #      use_java_code=True)
-
-        # AS algorithm based on DBSCAN
-        dbscan_object.clustering_polygons()
-        article_dict = dbscan_object.get_cluster_of_polygons()
-        save_results(article_dict, './test/resources/newseye_as_test_data/results_dict_new/',
-                     './test/resources/newseye_as_test_data/txt_files_hy/', image_name=image_name, other=False)
-
-        print("Time for the AS algorithm in s: {:.2f}".format(time.time() - t))
-
-    if PLOT_GRAPHIC:
-        # ground truth
-        path_to_xml_gt = prefix + "xml_files_gt/" + image_name + ".xml"
-        # hypothesis
-        path_to_dict_hy = prefix + "results_dict_new/" + image_name + ".pkl"
-
-        plot_results(path_to_xml_gt, path_to_dict_hy, path_to_img)
+    jpype.shutdownJVM()
