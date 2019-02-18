@@ -10,7 +10,12 @@ from argparse import ArgumentParser
 from util.xmlformats.PageObjects import TextLine
 
 # Make sure that the css parser for the custom attribute doesn't spam "WARNING Property: Unknown Property name."
+# Make sure that the css parser for the custom attribute doesn't spam "WARNING Property: Unknown Property name."
 cssutils.log.setLevel(logging.ERROR)
+
+logging.basicConfig(filename="./test/resources/Page.log",
+                    format="%(asctime)s:%(levelname)s:%(message)s",
+                    filemode="w")
 
 
 class PageXmlException(Exception):
@@ -50,8 +55,8 @@ class Page:
 
     sEXT = ".xml"
 
-    def __init__(self, path_to_xml=None, creator_name=sCREATOR, img_filename=None, img_w=None, img_h=None, print_log=True):
-        self.page_doc = self.load_page_xml(path_to_xml, print_log) if path_to_xml is not None else self.create_page_xml_document(
+    def __init__(self, path_to_xml=None, creator_name=sCREATOR, img_filename=None, img_w=None, img_h=None):
+        self.page_doc = self.load_page_xml(path_to_xml) if path_to_xml is not None else self.create_page_xml_document(
             creator_name, img_filename, img_w, img_h)
         if len(self.page_doc.getroot().getchildren()) != 2:
             elts = self.page_doc.getroot().getchildren()
@@ -60,13 +65,14 @@ class Page:
                 self.create_metadata(self.sCREATOR, comments="Metadata entry was missing, added..")
 
         if not self.validate(self.page_doc):
-            print("File given by {} is not a valid PageXml file.".format(path_to_xml))
+            logging.warning("File given by {} is not a valid PageXml file.".format(path_to_xml))
             # exit(1)
         self.metadata = self.get_metadata()
+        self.textlines = self.get_textlines()
 
     # =========== SCHEMA ===========
 
-    def validate(self, doc, print_log=True):
+    def validate(self, doc):
         """
         Validate against the PageXml schema used by Transkribus
 
@@ -80,8 +86,8 @@ class Page:
         b_valid = self.cachedValidationContext.validate(doc)
         log = self.cachedValidationContext.error_log
 
-        if not b_valid and print_log:
-            print(log)
+        if not b_valid:
+            logging.warning(log)
         return b_valid
 
     @classmethod
@@ -136,8 +142,8 @@ class Page:
         return the Metadata DOM node
         """
         nd_metadata, nd_creator, nd_created, nd_last_change, nd_comments = self._get_metadata_nodes()
-        if nd_creator.text:
-            nd_creator.text += ", changed by " + creator
+        if nd_creator.text and nd_creator.text != creator:
+            nd_creator.text += ", modified by " + creator
         # The schema seems to call for GMT date&time  (IMU)
         # ISO 8601 says:  "If the time is in UTC, add a Z directly after the time without a space. Z is the zone
         # designator for the zero UTC offset."
@@ -151,12 +157,10 @@ class Page:
         return nd_metadata
 
     def create_metadata(self, creator_name=sCREATOR, comments=None):
-        xml_page_root: etree._Element = self.page_doc.getroot()
+        xml_page_root = self.page_doc.getroot()
 
         metadata = etree.Element('{%s}%s' % (self.NS_PAGE_XML, self.sMETADATA_ELT))
-        # xml_page_root.append(metadata)
         xml_page_root.insert(0, metadata)
-
         creator = etree.Element('{%s}%s' % (self.NS_PAGE_XML, self.sCREATOR_ELT))
         creator.text = creator_name
         created = etree.Element('{%s}%s' % (self.NS_PAGE_XML, self.sCREATED_ELT))
@@ -258,14 +262,16 @@ class Page:
         except KeyError as e:
             raise PageXmlException("node %s: %s and %s not found in %s" % (nd, s_attr_name, s_sub_attr_name, ddic))
 
+    def set_custom_attr_from_dict(self, nd, custom_dict):
+        nd.set(self.sCUSTOM_ATTR, self.format_custom_attr(custom_dict))
+        return nd
+
     def set_custom_attr(self, nd, s_attr_name, s_sub_attr_name, s_val):
         """
         Change the custom attribute by setting the value of the 1st+2nd key in the DOM
         return the value
         Raise KeyError if one of the attributes does not exist
         """
-        if s_val is None:
-            return None
         ddic = self.parse_custom_attr(nd.get(self.sCUSTOM_ATTR))
         try:
             ddic[s_attr_name][s_sub_attr_name] = str(s_val)
@@ -276,6 +282,13 @@ class Page:
         sddic = self.format_custom_attr(ddic)
         nd.set(self.sCUSTOM_ATTR, sddic)
         return s_val
+
+    def remove_custom_attr(self, nd, s_attr_name, s_sub_attr_name):
+        ddic = self.parse_custom_attr(nd.get(self.sCUSTOM_ATTR))
+        if s_attr_name in ddic and s_sub_attr_name in ddic[s_attr_name]:
+            ddic[s_attr_name].pop(s_sub_attr_name)
+        else:
+            print("Can't remove {} from {} in {}.".format(s_sub_attr_name, s_attr_name, ddic))
 
     @staticmethod
     def parse_custom_attr(s):
@@ -374,40 +387,16 @@ class Page:
 
     # ======== ARTICLE STUFF =========
 
-    # def get_article_dict(self, nd):
-    #     global article_id
-    #     textline_nds = self.get_child_by_name(nd, "TextLine")
-    #     article_dict = {}
-    #     for tl in textline_nds:
-    #         # get article_id, baseline and text of a textline
-    #         try:
-    #             structure = self.get_custom_attr(tl, "structure")
-    #             # structure = self.get_custom_attr(tl.attrib["custom"], "structure")
-    #             if structure["type"] == "article":
-    #                 article_id = structure["id"]
-    #         except PageXmlException:
-    #             article_id = None
-    #         baseline = PageXml.get_child_by_name(tl, "Baseline")
-    #         baseline = baseline[0] if len(baseline) == 1 else None
-    #         if baseline is not None:
-    #             pt_list = self.get_point_list(baseline)
-    #         else:
-    #             pt_list = []
-    #         text = self.get_text_equiv(tl)
-    #         textline = TextLine(tl.get("id"), self.parse_custom_attr(tl.get("custom")), pt_list, text)
-    #
-    #         if article_id:
-    #             if article_id in article_dict:
-    #                 article_dict[article_id].append(textline)
-    #             else:
-    #                 article_dict[article_id] = [textline]
-    #         else:
-    #             if self.sAS_OTHER in article_dict:
-    #                 article_dict[self.sAS_OTHER].append(textline)
-    #             else:
-    #                 article_dict[self.sAS_OTHER] = [textline]
-    #
-    #     return article_dict
+    def get_article_dict(self):
+        article_dict = {}
+        for tl in self.textlines:
+            a_id = tl.get_article_id()
+            if a_id in article_dict:
+                article_dict[a_id].append(tl)
+            else:
+                article_dict[a_id] = [tl]
+
+        return article_dict
 
     def get_textlines(self):
         tl_nds = self.get_child_by_name(self.page_doc, self.sTEXTLINE)
@@ -426,9 +415,14 @@ class Page:
         """
         for tl in textlines:
             tl_nd = self.get_child_by_id(self.page_doc, tl.id)[0]
-            for k, d in tl.custom.items():
-                for k1, v1 in d.items():
-                    self.set_custom_attr(tl_nd, k, k1, v1)
+            self.set_custom_attr_from_dict(tl_nd, tl.custom)
+            # for k, d in tl.custom.items():
+            #     for k1, v1 in d.items():
+            #         if v1 is None:
+            #             self.remove_custom_attr(tl_nd, k, k1)
+            #             break
+            #         else:
+            #             self.set_custom_attr(tl_nd, k, k1, v1)
 
             # if tl.get_article_id() is None:
             #     continue
@@ -491,22 +485,18 @@ class Page:
 
         return node
 
-    def load_page_xml(self, path_to_xml, print_log=True):
+    def load_page_xml(self, path_to_xml):
         """Load PageXml file located at ``path_to_xml`` and return a DOM node.
 
         :param path_to_xml: path to PageXml file
         :return: DOM document node
         :rtype: etree._ElementTree
         """
-        page_doc = etree.parse(path_to_xml)
-        if not self.validate(page_doc, print_log) and print_log:
-            print("PageXml is not valid according to the Page schema definition {}.".format(self.get_schema_filename))
+        page_doc = etree.parse(path_to_xml, etree.XMLParser(remove_blank_text=True))
+        if not self.validate(page_doc):
+            logging.warning("PageXml is not valid according to the Page schema definition {}.".format(self.XSILOCATION))
 
         return page_doc
-
-    # TODO: Necessary?
-    def load_metadata_page(self):
-        return self.page_doc.getroot().getchildren()
 
     def write_page_xml(self, save_path, creator=sCREATOR, comments=None):
         """Save PageXml file to ``save_path``.
@@ -553,12 +543,23 @@ if __name__ == "__main__":
     flags = parser.parse_args()
 
     page = Page(flags.path_to_xml)
-    textlines = page.get_textlines()
-    # set all textline article ids to "a1"
-    # textline attrs are changed via id -> for now adding textlines is not supported!
-    for tl in textlines:
-        tl.set_article_id("a1")
-        # print(tl.baseline.points_list)
-        print(tl.surr_p.to_polygon().x_points)
-    page.set_textline_attr(textlines)
-    page.write_page_xml("./test/resources/page_xml_copy.xml")
+
+    print(page.get_article_dict())
+
+    # textlines = page.get_textlines()
+    # for tl in textlines:
+    #     if tl.get_article_id() is not None:
+    #         tl.set_article_id(None)
+    # page.set_textline_attr(textlines)
+
+    # page.write_page_xml("./test/resources/page_xml_no_meta_copy.xml")
+
+    # textlines = page.get_textlines()
+    # # set all textline article ids to "a1"
+    # # textline attrs are changed via id -> for now adding textlines is not supported!
+    # for tl in textlines:
+    #     tl.set_article_id("a1")
+    #     # print(tl.baseline.points_list)
+    #     print(tl.surr_p.to_polygon().x_points)
+    # page.set_textline_attr(textlines)
+    # page.write_page_xml("./test/resources/page_xml_copy.xml")
