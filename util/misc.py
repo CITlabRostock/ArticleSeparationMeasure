@@ -123,7 +123,7 @@ def get_article_polys_from_file(poly_file_name):
         # TODO: add try except -> which kind of exception can occur?
         page = Page(poly_file_name)
         ad = page.get_article_dict()
-        res = [a_polys for a_polys in ad.values()]
+        res = [[a_poly.baseline.to_polygon() for a_poly in a_polys] for a_polys in ad.values()]
         return res, False
 
 
