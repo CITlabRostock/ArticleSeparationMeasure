@@ -119,12 +119,24 @@ def get_article_polys_from_file(poly_file_name):
                     return None, True
 
         return res, False
+
     if poly_file_name.endswith(".xml"):
         # TODO: add try except -> which kind of exception can occur?
         page = Page(poly_file_name)
         ad = page.get_article_dict()
-        res = [[a_poly.baseline.to_polygon() for a_poly in a_polys] for a_polys in ad.values()]
-        return res, False
+
+        # with None class
+        res_with_none = [[a_poly.baseline.to_polygon() for a_poly in a_polys] for a_polys in ad.values()]
+
+        # without None class
+        res_without_none = []
+        for article_id in ad:
+            if article_id is None:
+                continue
+
+            res_without_none.append([a_poly.baseline.to_polygon() for a_poly in ad[article_id]])
+
+        return res_without_none, res_with_none, False
 
 
 def blow_up(polygon):
@@ -417,10 +429,3 @@ def f_measure(precision, recall):
         return 0.0
     else:
         return 2.0 * precision * recall / (precision + recall)
-
-
-if __name__ == '__main__':
-    res, err = get_article_polys_from_file("test/resources/articles/pageReco2.txt")
-    print(err)
-    for r in res:
-        print(r)
