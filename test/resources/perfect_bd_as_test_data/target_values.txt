@@ -1,3 +1,5 @@
+# f-values for the "perfect_bd_as_test_data" directory
+
 pageTruth <-> pageReco1:
 mit Average     : unabhängiges Alignment: 1
                   Alignmet von R auf P  : 1

@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import jpype
 import datetime
 import numpy as np
@@ -14,6 +16,7 @@ def greedy_alignment(array):
 
     arr = np.copy(array)
     greedy_alignment = []  # np.zeros([min(*matrix.shape)])
+
     while True:
         # calculate indices for maximum alignment
         max_idx_x, max_idx_y = np.unravel_index(np.argmax(arr), arr.shape)
@@ -25,6 +28,7 @@ def greedy_alignment(array):
         # set row and column to -1
         arr[max_idx_x, :] = -1.0
         arr[:, max_idx_y] = -1.0
+
     return greedy_alignment
 
 
@@ -33,6 +37,7 @@ def sum_over_indices(array, index_list):
     assert type(index_list) == list, "index_list has to be list"
     assert all([type(ele) == list or type(ele) == tuple for ele in index_list]),\
         "elements of index_list have to tuples or lists"
+
     index_size = len(index_list[0])
     assert all([len(ele) == index_size for ele in index_list]), "indices in index_list have to be of same length"
     assert len(array.shape) == index_size, "array shape and indices have to match"
@@ -40,17 +45,29 @@ def sum_over_indices(array, index_list):
     res = 0.0
     for index in index_list:
         res += array[index]
+
     return res
 
 
 def run_eval(truth_file, reco_file, min_tol, max_tol, threshold_tf, java_code=True):
+    """
+
+    :param truth_file:
+    :param reco_file:
+    :param min_tol:
+    :param max_tol:
+    :param threshold_tf:
+    :param java_code: usage of methods written in java or not
+    """
+
     if not (truth_file and reco_file):
         print("No arguments given for <truth> or <reco>, exiting. See --help for usage.")
         exit(1)
 
-    # Parse input to create truth and reco baseline polygon lists
+    # Parse input
     list_truth = []
     list_reco = []
+
     if truth_file.endswith((".txt", ".xml")):
         list_truth.append(truth_file)
     if reco_file.endswith((".txt", ".xml")):
@@ -67,13 +84,11 @@ def run_eval(truth_file, reco_file, min_tol, max_tol, threshold_tf, java_code=Tr
     if not (len(list_truth) == len(list_reco)):
         raise ValueError("Same reco- and truth-list length required.")
 
-    print("-----Baseline evaluation-----")
-    print("")
+    print("-----Article Segmentation Evaluation-----\n")
     print("Evaluation performed on {}".format(datetime.datetime.now().strftime("%Y.%m.%d, %H:%M")))
-    print("Evaluation performed for GT: {}".format(truth_file))
+    print("Evaluation performed for GT  : {}".format(truth_file))
     print("Evaluation performed for HYPO: {}".format(reco_file))
-    print("Number of pages: {}".format(len(list_truth)))
-    print("")
+    print("Number of pages: {}".format(len(list_truth)) + "\n")
     print("Loading protocol:")
 
     pages_article_truth_without_none = []
@@ -82,10 +97,8 @@ def run_eval(truth_file, reco_file, min_tol, max_tol, threshold_tf, java_code=Tr
     pages_article_truth_with_none = []
     pages_article_reco_with_none = []
 
-    num_article_truth = 0
-    num_poly_truth = 0
-    num_article_reco = 0
-    num_poly_reco = 0
+    num_article_truth, num_poly_truth = 0, 0
+    num_article_reco, num_poly_reco = 0, 0
 
     list_truth_fixed = list_truth[:]
     list_reco_fixed = list_reco[:]
@@ -97,14 +110,14 @@ def run_eval(truth_file, reco_file, min_tol, max_tol, threshold_tf, java_code=Tr
         truth_article_polys_from_file_with_none = None
         reco_article_polys_from_file_with_none = None
 
-        # Get truth polygons
+        # Get truth polygons article wise
         try:
             truth_article_polys_from_file_without_none, truth_article_polys_from_file_with_none, error_truth \
                 = util.get_article_polys_from_file(list_truth[i])
         except IOError:
             error_truth = True
 
-        # Get reco polygons
+        # Get reco polygons article wise
         try:
             reco_article_polys_from_file_without_none, reco_article_polys_from_file_with_none, error_reco \
                 = util.get_article_polys_from_file(list_reco[i])
@@ -113,44 +126,49 @@ def run_eval(truth_file, reco_file, min_tol, max_tol, threshold_tf, java_code=Tr
 
         # Skip pages with errors in either truth or reco
         if not (error_truth or error_reco):
-            if truth_article_polys_from_file_without_none is not None and reco_article_polys_from_file_without_none is not None:
+            if truth_article_polys_from_file_without_none is not None and \
+                    reco_article_polys_from_file_without_none is not None:
+
                 pages_article_truth_without_none.append(truth_article_polys_from_file_without_none)
                 pages_article_reco_without_none.append(reco_article_polys_from_file_without_none)
 
                 pages_article_truth_with_none.append(truth_article_polys_from_file_with_none)
                 pages_article_reco_with_none.append(reco_article_polys_from_file_with_none)
 
-                # Count polys
+                # Count articles and polygons
                 num_article_truth += len(truth_article_polys_from_file_without_none)
                 num_poly_truth += sum(len(polys) for polys in truth_article_polys_from_file_without_none)
                 num_article_reco += len(reco_article_polys_from_file_without_none)
                 num_poly_reco += sum(len(polys) for polys in reco_article_polys_from_file_without_none)
         else:
             if error_truth:
-                print("  Error loading: {}, skipping.".format(list_truth[i]))
+                print("Error loading: {}, skipping.".format(list_truth[i]))
             if error_reco:
-                print("  Error loading: {}, skipping.".format(list_reco[i]))
+                print("Error loading: {}, skipping.".format(list_reco[i]))
             list_truth_fixed.remove(list_truth[i])
             list_reco_fixed.remove(list_reco[i])
 
     if len(list_truth) == len(list_truth_fixed):
-        print("  Everything loaded without errors.")
+        print("Everything loaded without errors.")
 
-    print("")
-    print("{} out of {} GT-HYPO page pairs loaded without errors and used for evaluation.".format
-          (len(list_truth_fixed), len(list_truth)))
-    print("Number of GT: {} lines found in {} articles".format(num_poly_truth, num_article_truth))
-    print("Number of HYPO: {} lines found in {} articles".format(num_poly_reco, num_article_reco))
+    print("\n{} out of {} GT-HYPO page pairs loaded without errors and used for evaluation.".
+          format(len(list_truth_fixed), len(list_truth)))
+    print("Number of GT  : {} lines found in {} articles (without \"None\" class)".
+          format(num_poly_truth, num_article_truth))
+    print("Number of HYPO: {} lines found in {} articles (without \"None\" class)".
+          format(num_poly_reco, num_article_reco))
 
-    # Evaluate measure for each page
-    print("")
-    print("Pagewise evaluation:")
-    print("")
-    print("{:>15s} {:>10s} {:>10s} {:>10s}  {:^50s}  {:^50s}".format(
-        "Mode", "P-value", "R-value", "F-value", "TruthFile", "HypoFile"))
+    #####################
+    # Pagewise Evaluation
+    print("\n-----Pagewise Evaluation-----\n")
+    print("{:>15s} {:>10s} {:>10s} {:>10s}  {:^50s}  {:^50s}".
+          format("Mode", "P-value", "R-value", "F-value", "TruthFile", "HypoFile"))
     print("-" * (15 + 1 + 10 + 1 + 10 + 1 + 10 + 1 + 50 + 1 + 50))
 
-    for p, page_articles in enumerate(zip(pages_article_truth_without_none, pages_article_reco_without_none)):
+    recall_sum, precision_sum, f_measure_sum = 0, 0, 0
+    recall_weighted_sum, precision_weighted_sum, f_measure_weighted_sum = 0, 0, 0
+
+    for page_index, page_articles in enumerate(zip(pages_article_truth_without_none, pages_article_reco_without_none)):
         page_articles_truth = page_articles[0]
         page_articles_reco = page_articles[1]
 
@@ -169,7 +187,7 @@ def run_eval(truth_file, reco_file, min_tol, max_tol, threshold_tf, java_code=Tr
                 page_wise_article_precision[i, j] = bl_measure_eval.measure.result.page_wise_precision[-1]
                 page_wise_article_recall[i, j] = bl_measure_eval.measure.result.page_wise_recall[-1]
 
-        # Evaluate measure for entire baseline sets without None class
+        # Evaluate baseline detection measure for entire baseline set without "None" class
         page_truth_without_none = [poly_truth for article_truth in page_articles_truth for poly_truth in article_truth]
         page_reco_without_none = [poly_reco for article_reco in page_articles_reco for poly_reco in article_reco]
 
@@ -180,9 +198,11 @@ def run_eval(truth_file, reco_file, min_tol, max_tol, threshold_tf, java_code=Tr
         page_precision_without_none = bl_measure_eval.measure.result.page_wise_precision[-1]
         page_f_measure_without_none = util.f_measure(page_precision_without_none, page_recall_without_none)
 
-        # Evaluate measure for entire baseline sets with None class
-        page_truth_with_none = [poly_truth for article_truth in pages_article_truth_with_none[p] for poly_truth in article_truth]
-        page_reco_with_none = [poly_reco for article_reco in pages_article_reco_with_none[p] for poly_reco in article_reco]
+        # Evaluate baseline detection measure for entire baseline set with "None" class
+        page_truth_with_none = \
+            [poly_truth for article_truth in pages_article_truth_with_none[page_index] for poly_truth in article_truth]
+        page_reco_with_none = \
+            [poly_reco for article_reco in pages_article_reco_with_none[page_index] for poly_reco in article_reco]
 
         bl_measure_eval.calc_measure_for_page_baseline_polys(page_truth_with_none, page_reco_with_none,
                                                              use_java_code=java_code)
@@ -192,7 +212,6 @@ def run_eval(truth_file, reco_file, min_tol, max_tol, threshold_tf, java_code=Tr
         page_f_measure_with_none = util.f_measure(page_precision_with_none, page_recall_with_none)
 
         # Greedy alignment of articles
-
         #####
         # 1) Without article weighting; independant alignment
         greedy_align_precision = greedy_alignment(page_wise_article_precision)
@@ -200,11 +219,14 @@ def run_eval(truth_file, reco_file, min_tol, max_tol, threshold_tf, java_code=Tr
 
         precision = sum_over_indices(page_wise_article_precision, greedy_align_precision)
         precision = precision / len(page_articles_reco)
+        precision_sum += precision
 
         recall = sum_over_indices(page_wise_article_recall, greedy_align_recall)
         recall = recall / len(page_articles_truth)
+        recall_sum += recall
 
         f_measure = util.f_measure(precision, recall)
+        f_measure_sum += f_measure
 
         #####
         # 2) With article weighting (based on baseline percentage portion of truth/hypo); independant alignment
@@ -214,74 +236,45 @@ def run_eval(truth_file, reco_file, min_tol, max_tol, threshold_tf, java_code=Tr
         articles_reco_weighting = articles_reco_length / np.sum(articles_reco_length)
 
         # column-wise weighting for precision
-        article_wise_precision_w = page_wise_article_precision * articles_reco_weighting
+        article_wise_precision_weighted = page_wise_article_precision * articles_reco_weighting
 
         # row-wise weighting for recall
-        article_wise_recall_w = page_wise_article_recall * np.expand_dims(articles_truth_weighting, axis=1)
+        article_wise_recall_weighted = page_wise_article_recall * np.expand_dims(articles_truth_weighting, axis=1)
 
-        greedy_align_precision_w = greedy_alignment(article_wise_precision_w)
-        greedy_align_recall_w = greedy_alignment(article_wise_recall_w)
+        greedy_align_precision_weighted = greedy_alignment(article_wise_precision_weighted)
+        greedy_align_recall_weighted = greedy_alignment(article_wise_recall_weighted)
 
-        precision_w = sum_over_indices(article_wise_precision_w, greedy_align_precision_w)
-        recall_w = sum_over_indices(article_wise_recall_w, greedy_align_recall_w)
-        f_measure_w = util.f_measure(precision_w, recall_w)
+        precision_weighted = sum_over_indices(article_wise_precision_weighted, greedy_align_precision_weighted)
+        precision_weighted_sum += precision_weighted
+
+        recall_weighted = sum_over_indices(article_wise_recall_weighted, greedy_align_recall_weighted)
+        recall_weighted_sum += recall_weighted
+
+        f_measure_weighted = util.f_measure(precision_weighted, recall_weighted)
+        f_measure_weighted_sum += f_measure_weighted
 
         # Output
-        print("{:>15s} {:>10.4f} {:>10.4f} {:>10.4f}  {}  {}".format(
-            "ind", precision, recall, f_measure, list_truth_fixed[p], list_reco_fixed[p]))
-        print("{:>15s} {:>10.4f} {:>10.4f} {:>10.4f}  {}  {}".format(
-            "weighted, ind", precision_w, recall_w, f_measure_w, list_truth_fixed[p], list_reco_fixed[p]))
-        print("{:>15s} {:>10.4f} {:>10.4f} {:>10.4f}  {}  {}".format(
-            "bd without None", page_precision_without_none, page_recall_without_none, page_f_measure_without_none,
-            list_truth_fixed[p], list_reco_fixed[p]))
-        print("{:>15s} {:>10.4f} {:>10.4f} {:>10.4f}  {}  {}".format(
-            "bd with None", page_precision_with_none, page_recall_with_none, page_f_measure_with_none,
-            list_truth_fixed[p], list_reco_fixed[p]))
-        print("")
+        print("{:>15s} {:>10.4f} {:>10.4f} {:>10.4f}  {}  {}".
+              format("ind", precision, recall, f_measure, list_truth_fixed[page_index], list_reco_fixed[page_index]))
+        print("{:>15s} {:>10.4f} {:>10.4f} {:>10.4f}  {}  {}".
+              format("weighted, ind", precision_weighted, recall_weighted, f_measure_weighted,
+                     list_truth_fixed[page_index], list_reco_fixed[page_index]))
+        print("{:>15s} {:>10.4f} {:>10.4f} {:>10.4f}  {}  {}".
+              format("bd without None", page_precision_without_none, page_recall_without_none,
+                     page_f_measure_without_none, list_truth_fixed[page_index], list_reco_fixed[page_index]))
+        print("{:>15s} {:>10.4f} {:>10.4f} {:>10.4f}  {}  {}".
+              format("bd with None", page_precision_with_none, page_recall_with_none, page_f_measure_with_none,
+                     list_truth_fixed[page_index], list_reco_fixed[page_index]) + "\n")
 
-    # # Pagewise evaluation
-    # print("")
-    # print("Pagewise evaluation:")
-    # print("{:>10s} {:>10s} {:>10s}  {:^30s}  {:^30s}".format("P-value", "R-value", "F-value", "TruthFile", "HypoFile"))
-    # print("-" * (10+1+10+1+10+2+30+2+30))
-    # for i in range(len(list_truth_fixed)):
-    #     page_precision = bl_measure.result.page_wise_precision[i]
-    #     page_recall = bl_measure.result.page_wise_recall[i]
-    #     page_f_value = util.f_measure(page_precision, page_recall)
-    #     print("{:>10.4f} {:>10.4f} {:>10.4f}  {}  {}".format
-    #           (page_precision, page_recall, page_f_value, list_truth_fixed[i], list_reco_fixed[i]))
-
-    # # Final evaluation
-    # print("")
-    # print("---Final evaluation---")
-    # print("")
-    # print("Average (over pages) P-value: {:.4f}".format(bl_measure.result.precision))
-    # print("Average (over pages) R-value: {:.4f}".format(bl_measure.result.recall))
-    # print("Resultung F1-score: {:.4f}".format(util.f_measure(bl_measure.result.precision, bl_measure.result.recall)))
-    # print("")
-    #
-    # # Global tp, fp, fn, tn for given threshold
-    # if threshold_tf > 0.0:
-    #     page_wise_true_false_pos = bl_measure.get_page_wise_true_false_counts_hypo(threshold_tf)
-    #     page_wise_true_false_neg = bl_measure.get_page_wise_true_false_counts_gt(threshold_tf)
-    #     true_pos = 0
-    #     false_pos = 0
-    #     true_neg = 0
-    #     false_neg = 0
-    #     for i in range(page_wise_true_false_pos.shape[1]):
-    #         true_pos += page_wise_true_false_pos[0, i]
-    #         false_pos += page_wise_true_false_pos[1, i]
-    #         true_neg += page_wise_true_false_neg[0, i]
-    #         false_neg += page_wise_true_false_neg[1, i]
-    #     print("Number of true hypothesis lines for average P-value threshold of {} is {}".format
-    #           (threshold_tf, true_pos))
-    #     print("Number of false hypothesis lines for average P-value threshold of {} is {}".format
-    #           (threshold_tf, false_pos))
-    #     print("Number of true groundtruth lines for average R-value threshold of {} is {}".format
-    #           (threshold_tf, true_neg))
-    #     print("Number of false groundtruth lines for average R-value threshold of {} is {}".format
-    #           (threshold_tf, false_neg))
-    #     print("")
+    ##################
+    # Final Evaluation
+    print("\n-----Final Evaluation-----\n")
+    print("Average P-value  (ind): {:.4f}".format(precision_sum / len(list_truth_fixed)) +
+          "  Average P-value  (weighted, ind): {:.4f}".format(precision_weighted_sum / len(list_truth_fixed)))
+    print("Average R-value  (ind): {:.4f}".format(recall_sum / len(list_truth_fixed)) +
+          "  Average R-value  (weighted, ind): {:.4f}".format(recall_weighted_sum / len(list_truth_fixed)))
+    print("Average F1-score (ind): {:.4f}".format(f_measure_sum / len(list_truth_fixed)) +
+          "  Average F1-score (weighted, ind): {:.4f}".format(f_measure_weighted_sum / len(list_truth_fixed)) + "\n")
 
 
 if __name__ == '__main__':
@@ -292,7 +285,7 @@ if __name__ == '__main__':
     As input it requires the truth and reco information.
     A basic truth (and reco) file corresponding to a page has to be a txt-file,
     where every line corresponds to a baseline polygon and should look like:
-    x1,y1;x2,y2;x3,y3;...;xn,yn.
+    x1,y1;x2,y2;x3,y3;...;xn,yn. Alternatively, the PageXml format is allowed.
     As arguments (truth, reco) such txt-files OR lst-files (containing a path to
     a basic txt-file per line) are required. For lst-files, the order of the
     truth/reco-files in both lists has to be identical."""
@@ -308,8 +301,10 @@ if __name__ == '__main__':
     parser.add_argument('--max_tol', default=-1, type=int, metavar='FLOAT',
                         help="maximum tolerance value, -1 for dynamic calculation (default: %(default)s)")
     parser.add_argument('--threshold_tf', default=-1.0, type=float, metavar='FLOAT',
-                        help="threshold for P- and R-value to make a decision concerning tp, fp, fn, tn."
-                             " Should be between 0 and 1, (default: %(default)s - nothing is done)")
+                        help="threshold for P- and R-value to make a decision concerning tp, fp, fn, tn. "
+                             "Should be between 0 and 1 (default: %(default)s - nothing is done)")
+    parser.add_argument('--java_code', default=True, type=bool, metavar='BOOL',
+                        help="usage of methods written in java or not (default: %(default)s)")
 
     # def str2bool(arg):
     #     return arg.lower() in ('true', 't', '1')
@@ -317,22 +312,33 @@ if __name__ == '__main__':
     #                     help="only evaluate hypo polygons if they are (partly) contained in region polygons,"
     #                          " if they are available (default: %(default)s)")
 
-    # Run evaluation
-    # flags = parser.parse_args()
-    # run_eval(flags.truth, flags.reco, flags.min_tol, flags.max_tol, flags.threshold_tf)
-
     # start java virtual machine to be able to execute the java code
     jpype.startJVM(jpype.getDefaultJVMPath())
 
+    # # example with Command-line arguments
+    # flags = parser.parse_args()
+    # run_eval(flags.truth, flags.reco, min_tol=flags.min_tol, max_tol=flags.max_tol, threshold_tf=flags.threshold_tf,
+    #          java_code=flags.java_code)
+
+    # example with PageXml files
     gt_files_path_list = "./test/resources/newseye_as_test_data/gt_xml_paths.lst"
     hy_files_path_list = "./test/resources/newseye_as_test_data/hy_xml_paths.lst"
+    run_eval(gt_files_path_list, hy_files_path_list, min_tol=-1, max_tol=-1, threshold_tf=-1, java_code=True)
 
-    # # evaluation of one special page
+    # gt_files_path_list = "../../Le_Matin_Set/gt_xml_paths.lst"
+    # hy_files_path_list = "../../Le_Matin_Set/hy_xml_paths.lst"
+    # run_eval(gt_files_path_list, hy_files_path_list, min_tol=-1, max_tol=-1, threshold_tf=-1, java_code=True)
+
+    # # example with txt files
+    # gt_files_path_list = "./test/resources/perfect_bd_as_test_data/gt_txt_paths.lst"
+    # hy_files_path_list = "./test/resources/perfect_bd_as_test_data/hy_txt_paths.lst"
+    # run_eval(gt_files_path_list, hy_files_path_list, min_tol=-1, max_tol=-1, threshold_tf=-1, java_code=True)
+
+    # # example for the evaluation of one special page
     # newspaper_site = "19000715_1-0001.xml"
     # gt_files_path_list = "./test/resources/newseye_as_test_data/xml_files_gt/" + newspaper_site
     # hy_files_path_list = "./test/resources/newseye_as_test_data/xml_files_hy/" + newspaper_site
-
-    run_eval(gt_files_path_list, hy_files_path_list, max_tol=-1, min_tol=-1, threshold_tf=-1, java_code=True)
+    # run_eval(gt_files_path_list, hy_files_path_list, min_tol=-1, max_tol=-1, threshold_tf=-1, java_code=True)
 
     # shut down the java virtual machine
     jpype.shutdownJVM()

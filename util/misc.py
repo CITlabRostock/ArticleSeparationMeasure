@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import math
 from io import open
 
@@ -7,35 +9,37 @@ from util.xmlformats.Page import Page
 
 
 def load_text_file(filename):
-    """Load text file ``filename`` and return the (stripped) lines as list entries.
+    """ Load text file ``filename`` and return the (stripped) lines as list entries.
 
     :param filename: path to the file to be loaded
     :type filename: str
     :return: list of strings consisting of the (stripped) lines from filename
     """
-
     res = []
+
     with open(filename, 'r') as f:
         for line in f:
             if line == "\n":
                 res.append(line)
             else:
                 res.append(line.strip())
+
         return res
 
 
 def string_to_poly(string_polygon):
-    """Parse the polygon represented by the string ``string_polygon`` and return a ``Polygon`` object.
+    """ Parse the polygon represented by the string ``string_polygon`` and return a ``Polygon`` object.
 
     :param string_polygon: coordinates of a polygon given in string format: x1,y1;x2,y2;...;xn,yn
     :type string_polygon: str
     :return: Polygon object with the coordinates given in string_polygon
     """
-
     polygon = Polygon()
     points = string_polygon.split(";")
+
     if len(points) < 2:
         raise Exception("Wrong polygon string format.")
+
     for p in points:
         coord = p.split(",")
         if len(coord) < 2:
@@ -43,92 +47,82 @@ def string_to_poly(string_polygon):
         coord_x = int(coord[0])
         coord_y = int(coord[1])
         polygon.add_point(coord_x, coord_y)
+
     return polygon
 
 
 def poly_to_string(polygon):
-    """Inverse method of ``string_to_poly``, taking a polygon as input and outputs a string holding the x,y coordinates
+    """ Inverse method of ``string_to_poly``, taking a polygon as input and outputs a string holding the x,y coordinates
     of the points present in the polygon separated by semicolons ";".
 
     :param polygon: input polygon to be parsed
     :type polygon: Polygon
     :return: a string holding the x,y coordinates of the polygon in format: x1,y1;x2,y2;...;xn,yn
     """
-
     res = ""
+
     for x, y in zip(polygon.x_points, polygon.y_points):
         if len(res) != 0:
             res += ";"
         res += str(x) + "," + str(y)
+
     return res
 
 
-def get_polys_from_file(poly_file_name):
-    """Load polygons from a text file `poly_file_name` and save them as `Polygon` objects in a list.
-
-    :param poly_file_name: path to the txt file holding the polygons (one polygon per line)
-    :type poly_file_name: str
-    :return: a tuple containing a list of polygons (None if errors occur or no polygons are found) and a boolean value
-    representing if the polygons loaded with errors
-    """
-
-    # TODO: Bool return value necessary? -> Just check if returned list is None (then you know if it was skipped or not)
-    poly_strings = load_text_file(poly_file_name)
-    if len(poly_strings) == 0:
-        return None, False
-
-    res = []
-    for poly_string in poly_strings:
-        try:
-            poly = string_to_poly(str(poly_string))
-            res.append(poly)
-        except ValueError:
-            return None, True
-    return res, False
-
-
 def get_article_polys_from_file(poly_file_name):
-    """Load polygons from a text file `poly_file_name`, split them up into articles (marked by empty lines) and
-    save them as `Polygon` objects.
+    """ Load polygons from a txt file or a PageXml file `poly_file_name`, split them up into articles
+    (marked by empty lines in txt file (one polygon per line), marked by custom tag in PageXml file)
+    and save them as `Polygon` objects.
 
-    :param poly_file_name: path to the txt file holding the polygons (one polygon per line, empty line indicates
-    end of article)
+    NOTE: In the case of txt files, we dont distinguish between the "None" and the regular article classes!!!
+
+    :param poly_file_name: path to the txt or PageXml file holding the polygons
     :type poly_file_name: str
-    :return: a tuple containing a list of lists of polygons, where each sublist corresponds to an article (None if
-    errors occur or no polygons are found) and a boolean value representing if the polygons loaded without errors
+    :return: a triple containing two lists of lists of polygons, where each sublist corresponds to an article and a
+             boolean value representing if the polygons loaded without errors
     """
-
-    # TODO: Bool return value necessary? -> Just check if returned list is None (then you know if it was skipped or not)
     if poly_file_name.endswith(".txt"):
-        poly_strings = load_text_file(poly_file_name)
-        if len(poly_strings) == 0:
-            return None, False
-        poly_strings.append("\n")
+        try:
+            poly_strings = load_text_file(poly_file_name)
+        except Exception as e:
+            # Cannot load txt file or cannot extract the articles from the txt
+            print(e)
+            return None, None, True
 
-        res = []
+        if len(poly_strings) == 0:
+            # Cannot load txt file or cannot extract the articles from the txt
+            print("No article baselines found.")
+            return None, None, True
+
+        poly_strings.append("\n")
+        res_with_none = []
         article_polys = []
+
         for poly_string in poly_strings:
             if poly_string == "\n":
-                res.append(article_polys)
+                res_with_none.append(article_polys)
                 article_polys = []
             else:
-                try:
-                    poly = string_to_poly(str(poly_string))
-                    article_polys.append(poly)
-                except ValueError:
-                    return None, True
+                poly = string_to_poly(str(poly_string))
+                article_polys.append(poly)
 
-        return res, False
+        # no difference between "None" and regular article classes
+        res_without_none = res_with_none
+        return res_without_none, res_with_none, False
 
     if poly_file_name.endswith(".xml"):
-        # TODO: add try except -> which kind of exception can occur?
-        page = Page(poly_file_name)
-        ad = page.get_article_dict()
+        try:
+            page = Page(poly_file_name)
+            ad = page.get_article_dict()
+        except Exception as e:
+            # Cannot load PageXml file or cannot extract the articles from the PageXml
+            print(e)
+            return None, None, True
 
-        # with None class
+        # with "None" class
         res_with_none = [[a_poly.baseline.to_polygon() for a_poly in a_polys] for a_polys in ad.values()]
 
-        # without None class
+        # without "None" class
         res_without_none = []
         for article_id in ad:
             if article_id is None:
@@ -136,19 +130,26 @@ def get_article_polys_from_file(poly_file_name):
 
             res_without_none.append([a_poly.baseline.to_polygon() for a_poly in ad[article_id]])
 
+        if len(res_without_none) == 0:
+            # Cannot load PageXml file or cannot extract the articles from the PageXml
+            print("No article baselines (except such in \"None\" class) found.")
+            return None, res_with_none, True
+
         return res_without_none, res_with_none, False
 
 
 def blow_up(polygon):
-    """Takes a ``polygon`` as input and adds pixels to it according to the following rule. Consider the line between two
-    adjacent pixels in the polygon (i.e., if connected via an egde). Then the method adds additional equidistand pixels
-    lying on that line (if the value is double, convert to int), dependent on the x- and y-distance of the pixels.
+    """ Takes a ``polygon`` as input and adds pixels to it according to the following rule. Consider the line between
+    two adjacent pixels in the polygon (i.e., if connected via an egde). Then the method adds additional equidistand
+    pixels lying on that line (if the value is double, convert to int), dependent on the x- and y-distance of the
+    pixels.
 
     :param polygon: input polygon that should be blown up
     :type polygon: Polygon
     :return: blown up polygon
     """
     res = Polygon()
+
     for i in range(1, polygon.n_points, 1):
         x1 = polygon.x_points[i - 1]
         y1 = polygon.y_points[i - 1]
@@ -186,7 +187,7 @@ def blow_up(polygon):
 
 
 def thin_out(polygon, des_dist):
-    """Takes a (blown up) ``polygon`` as input and deletes pixels according to the destination distance (``des_dist``),
+    """ Takes a (blown up) ``polygon`` as input and deletes pixels according to the destination distance (``des_dist``),
     s.t. two pixels have a max distance of ``des_dist``. An exception are polygons that are less than or equal to 20
     pixels.
 
@@ -197,12 +198,14 @@ def thin_out(polygon, des_dist):
     :return: thinned out polygon
     """
     res = Polygon()
+
     if polygon.n_points <= 20:
         return polygon
     dist = polygon.n_points - 1
     min_pts = 20
     des_pts = max(min_pts, int(dist / des_dist) + 1)
     step = dist / (des_pts - 1)
+
     for i in range(des_pts - 1):
         idx = int(i * step)
         res.add_point(polygon.x_points[idx], polygon.y_points[idx])
@@ -212,7 +215,7 @@ def thin_out(polygon, des_dist):
 
 
 def norm_poly_dists(poly_list, des_dist):
-    """For a given list of polygons ``poly_list`` calculate the corresponding normed polygons, s.t. every polygon has
+    """ For a given list of polygons ``poly_list`` calculate the corresponding normed polygons, s.t. every polygon has
     adjacent pixels with a distance of ~des_dist.
 
     :param poly_list: list of polygons
@@ -221,8 +224,8 @@ def norm_poly_dists(poly_list, des_dist):
     :type des_dist: int
     :return: list of polygons
     """
-
     res = []
+
     for poly in poly_list:
         bb = poly.get_bounding_box()
         if bb.width > 100000 or bb.height > 100000:
@@ -239,7 +242,8 @@ def norm_poly_dists(poly_list, des_dist):
 
 
 def calc_reg_line_stats(poly):
-    """Return the angle of baseline polygon ``poly`` and the intersection of the linear regression line with the y-axis.
+    """ Return the angle of baseline polygon ``poly`` and the intersection of the linear regression line with the
+    y-axis.
 
     :param poly: input polygon
     :type poly: Polygon
@@ -289,7 +293,7 @@ def calc_reg_line_stats(poly):
 
 
 def get_dist_fast(point, bb):
-    """Calculate the distance between a ``point`` and a bounding box ``bb`` by adding up the x- and y-distance.
+    """ Calculate the distance between a ``point`` and a bounding box ``bb`` by adding up the x- and y-distance.
 
     :param point: a point given by [x, y]
     :param bb: the bounding box of a baseline polygon
@@ -298,6 +302,7 @@ def get_dist_fast(point, bb):
     :return: the distance of the point to the bounding box
     """
     dist = 0.0
+
     if point[0] < bb.x:
         dist += bb.x - point[0]
     if point[0] > bb.x + bb.width:
@@ -311,7 +316,7 @@ def get_dist_fast(point, bb):
 
 
 def get_in_dist(p1, p2, or_vec_x, or_vec_y):
-    """Calculate the inline distance of the points ``p1`` and ``p2`` according to the orientation vector with
+    """ Calculate the inline distance of the points ``p1`` and ``p2`` according to the orientation vector with
     x-coordinate ``or_vec_x`` and y-coordinate ``or_vec_y``.
 
     :param p1: first point
@@ -328,7 +333,7 @@ def get_in_dist(p1, p2, or_vec_x, or_vec_y):
 
 
 def get_off_dist(p1, p2, or_vec_x, or_vec_y):
-    """Calculate the offline distance of the points ``p1`` and ``p2`` according to the orientation vector with
+    """ Calculate the offline distance of the points ``p1`` and ``p2`` according to the orientation vector with
     x-coordinate ``or_vec_x`` and y-coordinate ``or_vec_y``.
 
     :param p1: first point
@@ -344,7 +349,7 @@ def get_off_dist(p1, p2, or_vec_x, or_vec_y):
 
 
 def calc_tols(polys_truth, tick_dist=5, max_d=250, rel_tol=0.25):
-    """Calculate tolerance values for every GT baseline according to https://arxiv.org/pdf/1705.03311.pdf.
+    """ Calculate tolerance values for every GT baseline according to https://arxiv.org/pdf/1705.03311.pdf.
 
     :param polys_truth: groundtruth baseline polygons (normalized)
     :param tick_dist: desired distance of points of the baseline polygon (default: 5)
@@ -355,6 +360,7 @@ def calc_tols(polys_truth, tick_dist=5, max_d=250, rel_tol=0.25):
     :return: tolerance values of the GT baselines
     """
     tols = []
+
     for poly_a in polys_truth:
         # Calculate the angle of the linear regression line representing the baseline polygon poly_a
         angle = calc_reg_line_stats(poly_a)[0]
@@ -417,14 +423,14 @@ def calc_tols(polys_truth, tick_dist=5, max_d=250, rel_tol=0.25):
 
 
 def f_measure(precision, recall):
-    """
-    Computes the F1-score for given precision and recall values.
+    """ Computes the F1-score for given precision and recall values.
 
     :param precision: float
     :param recall: float
     :return: F1-score (or 0.0 if both precision and recall are 0.0)
     """
     assert precision.dtype == float and recall.dtype == float, "precision and recall have to be floats"
+
     if precision == 0 and recall == 0:
         return 0.0
     else:

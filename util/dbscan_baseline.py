@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """ DBSCAN based on Chris McCormicks "https://github.com/chrisjmccormick/dbscan" """
 
 import math
@@ -14,7 +15,7 @@ class DBSCANBaselines:
                  rectangle_ratio=1 / 5, rectangle_interline_factor=3 / 2,
                  bounding_box_epsilon=5, min_intersect_ratio=3 / 5,
                  use_java_code=True):
-        """ initialization of the clustering process
+        """ Initialization of the clustering process.
 
         :param data: list of tuples ("String", Polygon) as the dataset
         :param min_polygons_for_cluster: minimum number of required polygons forming a cluster
@@ -75,7 +76,7 @@ class DBSCANBaselines:
         print("Number of (detected) baselines contained by the image: {}".format(len(self.list_of_normed_polygons)))
 
     def clustering_polygons(self):
-        """ clustering the polygons with DBSCAN based approach """
+        """ Clusters the polygons with DBSCAN based approach. """
 
         label = 0
         number_of_all_polygons = len(self.list_of_normed_polygons)
@@ -103,7 +104,7 @@ class DBSCANBaselines:
                 DBSCANBaselines.grow_cluster(self, polygon_index, neighbor_polygons, label)
 
     def grow_cluster(self, polygon_index, neighbor_polygons, this_label):
-        """ grow a new cluster with label "label" from a center polygon with index "polygon_index"
+        """ Grows a new cluster with label "label" from a center polygon with index "polygon_index".
 
         :param polygon_index: index of a center polygon of this new cluster
         :param neighbor_polygons: all neighbors of the center polygon
@@ -150,7 +151,7 @@ class DBSCANBaselines:
             i += 1
 
     def region_query(self, polygon_index):
-        """ find all polygons in the dataset within the defined neighborhood of the considered polygon "polygon_index"
+        """ Finds all polygons in the dataset within the defined neighborhood of the considered polygon "polygon_index".
 
         :param polygon_index: index of the considered polygon
         :return: index list of the neighbor polygons
@@ -202,7 +203,7 @@ class DBSCANBaselines:
         return neighbors
 
     def get_cluster_of_polygons(self):
-        """ calculate the cluster labels for the polygons
+        """ Calculates the cluster labels for the polygons.
 
         :return: list with article labels for each polygon
         """
@@ -219,8 +220,8 @@ class DBSCANBaselines:
         return self.list_of_labels
 
     def calc_interline_dist(self, tick_dist=5, max_d=250):
-        """ calculate interline distance values for every (normed!) polygon according to
-            "https://arxiv.org/pdf/1705.03311.pdf"
+        """ Calculates interline distance values for every (normed!) polygon according to
+            "https://arxiv.org/pdf/1705.03311.pdf".
 
         :param tick_dist: desired distance of points of the polygon
         :param max_d: max distance of pixels of a polygon to any other polygon (distance in terms of the x- and y-
@@ -276,7 +277,7 @@ class DBSCANBaselines:
         return interline_dist
 
     def calc_rectangles(self, polygon, interline_distance, width, height):
-        """ calculate an expanded and a "normal" bounding box for a given polygon
+        """ Calculates an expanded and a "normal" bounding box for a given polygon.
 
         :param polygon: given polygon
         :param interline_distance: corresponding interline distance of the polygon

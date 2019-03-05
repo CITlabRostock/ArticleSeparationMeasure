@@ -64,7 +64,7 @@ def cluster_baselines_dbscan(data, min_polygons_for_cluster=2, des_dist=5, max_d
 
     :param rectangle_ratio: ratio between the width and the height of the rectangles
     :param rectangle_interline_factor: multiplication factor to calculate the height of the rectangles with the help
-                                           of the interline distances
+                                       of the interline distances
     :param bounding_box_epsilon: additional width and height value to calculate the bounding boxes of the polygons
                                  during the clustering progress
     :param min_intersect_ratio: minimum threshold for the intersection being necessary to determine, whether two
