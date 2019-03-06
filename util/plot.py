@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 
 from util.geometry import Polygon
-import util.PAGE as PAGE
+# import util.PAGE as PAGE
+from util.xmlformats.Page import Page
+from util.xmlformats import PageObjects
 
 import random
 import numpy as np
@@ -11,17 +13,42 @@ import matplotlib.pyplot as plt
 from matplotlib import colors as mcolors
 from matplotlib.collections import PolyCollection
 
+# Use the default color (black) for the baselines belonging to no article
+DEFAULT_COLOR = 'k'
 
 BASECOLORS = mcolors.BASE_COLORS
+print(BASECOLORS)
+BASECOLORS.pop(DEFAULT_COLOR)
 COLORS = dict(BASECOLORS, **mcolors.CSS4_COLORS)
 by_hsv = sorted((tuple(mcolors.rgb_to_hsv(mcolors.to_rgba(color)[:3])), name)
                 for name, color in COLORS.items())
 COLORS_SORTED = [name for hsv, name in by_hsv]
-SEED = 500
+SEED = 501
 random.seed(SEED)
 random.shuffle(COLORS_SORTED)
 
-DEFAULT_COLOR = 'grey'
+# black is the color for the "other" class (first entry in the "colors" list)
+COLORS = ["darkgreen", "red", "darkviolet", "darkblue",
+          "gold", "darkorange", "brown", "yellowgreen", "darkcyan",
+
+          "darkkhaki", "firebrick", "darkorchid", "deepskyblue",
+          "peru", "orangered", "rosybrown", "burlywood", "cadetblue",
+
+          "olivedrab", "palevioletred", "plum", "slateblue",
+          "tan", "coral", "sienna", "yellow", "mediumaquamarine",
+
+          "forestgreen", "indianred", "blueviolet", "steelblue",
+          "silver", "salmon", "darkgoldenrod", "greenyellow", "darkturquoise",
+
+          "mediumseagreen", "crimson", "rebeccapurple", "navy",
+          "darkgray", "saddlebrown", "maroon", "lawngreen", "royalblue",
+
+          "springgreen", "tomato", "violet", "azure",
+          "goldenrod", "chocolate", "chartreuse", "teal"]
+
+for color in COLORS_SORTED:
+    if color not in COLORS:
+        COLORS.append(color)
 
 
 # Two interfaces supported by matplotlib:
@@ -46,54 +73,17 @@ def add_image(axes, path):
         print("Can't add image to the plot. Check if '{}' is a valid path.".format(path))
 
 
-def add_baselines(axes, blines, color=DEFAULT_COLOR):
-    """Add the baselines ``blines`` to the plot ``axes``. The baselines are given by their x- and y-coordinates, e.g.
-        [[[1,2,3],[2,3,4]],[[5,6,7],[7,8,9]]]
-    if we have two baseline polygons with 3 points each, where the first list is representing the x-values and the second
-    the y-values.
-
-    :param axes: represents an individual plot
-    :param blines: list of lists of x- and y-coordinates or a Polygon object
-    :param color: color of the baselines in the plot
-    :type axes: matplotlib.pyplot.Axes
-    :type blines: list of (Union[list of (list of Union[int,float]), Polygon])
-    :type color: str
-    :return: matplotlib.pyplot.Axes
-    """
-
-    # convert blines to a list of lists of x- and y-coordinates
-    _blines = []
-    for bline in blines:
-        if type(bline) == Polygon:
-            _blines.append([bline.x_points, bline.y_points])
-        else:
-            _blines.append(bline)
-
-    # Make a list of polygons where each polygon consists of [x,y]-pairs
-    blines = [np.transpose(p) for p in _blines]
-    # Make sure to use "None" in quotation marks, otherwise the default value is used and the polygons are filled
+def add_polygons(axes, poly_list, color=DEFAULT_COLOR, closed=False):
+    """poly_list = [[(x1,y1), (x2,y2), ... , (xN,yN)], ... , [(u1,v1), (u2, v2), ... , (uM, vM)]]
+    else if poly_list if of type Polygon convert it to that form."""
+    if check_type(poly_list, [Polygon]):
+        poly_list = [list(zip(poly.x_points, poly.y_points)) for poly in poly_list]
     try:
-        baseline_collection = PolyCollection(blines, closed=False, edgecolors=color, facecolors="None", linewidths=1.2)
-        return axes.add_collection(baseline_collection)
+        poly_collection = PolyCollection(poly_list, closed=closed, edgecolors=color, facecolors="None", linewidths=1.2)
+        return axes.add_collection(poly_collection)
     except ValueError:
-        print("Could not handle the input blines: {}".format(blines))
+        print(f"Could not handle the input polygon format {poly_list}")
         exit(1)
-
-
-def add_surrounding_polygon(axes, polygon, color='green'):
-    """Add the surrounding polygon ``polygon`` to the plot ``axes``. The polygon is given by its x- and y-coordinates.
-
-    :param axes: represents an individual plot
-    :param polygon: surrounding polygon
-    :param color: color of the surrounding polygon plot (default: green)
-    :return:
-    """
-    if type(polygon) == Polygon:
-        poly_coll = PolyCollection([np.transpose([polygon.x_points, polygon.y_points])], closed=True, edgecolors=color,
-                                   facecolors="None")
-    else:
-        poly_coll = PolyCollection([np.transpose(polygon)], closed=True, edgecolors=color, facecolors="None")
-    return axes.add_collection(poly_coll)
 
 
 def toggle_view(event, views):
@@ -119,10 +109,18 @@ def toggle_view(event, views):
         views["image"].set_visible(not is_visible)
         plt.draw()
 
+    # Toggle surrounding polygons
+    if event.key == 'p' and "surr_polys" in views:
+        for surr_poly in views["surr_polys"]:
+            is_visible = surr_poly.get_visible()
+            surr_poly.set_visible(not is_visible)
+        plt.draw()
+
     if event.key == 'h':
         print("Usage:\n"
               "\ti: toggle image\n"
               "\tb: toggle baselines\n"
+              "\tp: toggle surrounding polygons\n"
               "\th: show this help")
     else:
         return
@@ -150,34 +148,36 @@ def plot(img_path='', baselines_list=[], surr_polys=[], bcolors=[]):
         fig.canvas.set_window_title(img_path)
         views.update({"image": img_plot})
     except IOError:
-        print("Can't display image given by path: {}".format(img_path))
+        print(f"Can't display image given by path: {img_path}")
 
     if len(bcolors):
-        assert len(bcolors) == len(baselines_list)
+        assert len(bcolors) >= len(baselines_list), f"There should be at least {len(baselines_list)}" \
+            f" colors but just got {len(bcolors)}"
     else:
-        bcolors = ['blue'] * len(baselines_list)
+        bcolors = [DEFAULT_COLOR] * len(baselines_list)
 
     if baselines_list:
         for i, blines in enumerate(baselines_list):
-            baseline_collection = add_baselines(ax, blines, bcolors[i])
+            baseline_collection = add_polygons(ax, blines, bcolors[i], closed=False)
             if 'baselines' in views:
                 views['baselines'].append(baseline_collection)
             else:
                 views['baselines'] = [baseline_collection]
 
     if surr_polys:
-        for poly in surr_polys:
-            add_surrounding_polygon(ax, poly)
+        surr_poly_collection = add_polygons(ax, surr_polys, DEFAULT_COLOR, closed=True)
+        surr_poly_collection.set_visible(False)
+        views['surr_polys'] = [surr_poly_collection]
 
     ax.autoscale_view()
 
-    # Toggle bsaelines with "b", image with "i"
+    # Toggle baselines with "b", image with "i", surrounding polygons with "p"
     plt.connect('key_press_event', lambda event: toggle_view(event, views))
 
     # Add text
-    plt.text(0, -20, "image path: {}\n"
-                     "gt: {}\n"
-                     "hypo: {}".format(img_path, "not implemented yet", "not implemented yet"))
+    # plt.text(0, -20, "image path: {}\n"
+    #                  "gt: {}\n"
+    #                  "hypo: {}".format(img_path, "not implemented yet", "not implemented yet"))
 
     # Don't show axis
     plt.axis("off")
@@ -192,19 +192,39 @@ def plot_article_dict(article_dict, path_to_img):
         for _, bline in l:
             bline_list.append(bline)
         baselines_list.append(bline_list)
-    plot(path_to_img, baselines_list, bcolors=COLORS_SORTED[:len(baselines_list)])
+    plot(path_to_img, baselines_list, bcolors=COLORS[:len(baselines_list)])
 
 
 def plot_pagexml(page, path_to_img):
     if type(page) == str:
-        page = PAGE.parse_file(page)
-    assert type(page) == PAGE.Page, "Type must be Page, got {} instead.".format(type(page))
+        page = Page(page)
+    assert type(page) == Page, f"Type must be Page, got {type(page)} instead."
 
-    # get article-baselines dictionary
-    ad = page.get_baseline_text_dict(as_poly=True)
+    # get baselines based on the article id
+    article_dict = page.get_article_dict()
+    if not article_dict:
+        bcolors = []
+        blines_list = []
+    elif None in article_dict:
+        bcolors = COLORS[:len(article_dict) - 1] + [DEFAULT_COLOR]
+        blines_list = [[tline.baseline.points_list for tline in tlines]
+                       for (a_id, tlines) in article_dict.items() if a_id is not None] \
+                      + [[tline.baseline.points_list for tline in article_dict[None]]]
+    else:
+        bcolors = COLORS[:len(article_dict)]
+        blines_list = [[tline.baseline.points_list for tline in tlines] for tlines in article_dict.values()]
 
-    # add baselines and plot
-    plot_article_dict(ad, path_to_img)
+    # get surrounding polygons
+    textlines = page.get_textlines()
+    surr_polys = [tl.surr_p.points_list for tl in textlines if tl]
+
+    plot(path_to_img, blines_list, surr_polys, bcolors)
+
+    # # get article-baselines dictionary
+    # ad = page.get_baseline_text_dict(as_poly=True)
+    #
+    # # add baselines and plot
+    # plot_article_dict(ad, path_to_img)
 
 
 if __name__ == '__main__':
@@ -218,11 +238,10 @@ if __name__ == '__main__':
     # plot(img_path, [baselines], surr_poly)
     # # plot(img_path='', baselines=baselines)
 
-    path_to_img = "./test/resources/page_test.tif"
-    path_to_xml = "./test/resources/page_test.xml"
+    # path_to_img = "./test/resources/page_test.tif"
+    # path_to_xml = "./test/resources/page_test.xml"
 
     path_to_xml = "./test/resources/newseye_as_test_data/xml_files_gt/19000715_1-0001.xml"
     path_to_img = "./test/resources/newseye_as_test_data/image_files/19000715_1-0001.jpg"
 
-    plot_pagexml(PAGE.parse_file(path_to_xml), path_to_img)
-
+    plot_pagexml(Page(path_to_xml), path_to_img)
