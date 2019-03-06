@@ -1,14 +1,10 @@
-# coding=utf-8
-
-from __future__ import division
-from __future__ import print_function
-from __future__ import absolute_import
+# -*- coding: utf-8 -*-
 
 import math
-from unittest import TestCase
+
 from util import misc
+from unittest import TestCase
 from util.geometry import Polygon, Rectangle
-import numpy as np
 
 
 class TestUtil(TestCase):
@@ -31,38 +27,6 @@ class TestUtil(TestCase):
         polygon = Polygon([1, 2, 4], [2, 3, 5], 3)
         res = "1,2;2,3;4,5"
         self.assertEqual(res, misc.poly_to_string(polygon))
-
-    def test_get_polys_from_file(self):
-        poly_file_name = "./resources/lineReco7.txt"
-        # poly_file_name = "./resources/lineReco10_withError.txt"
-        # poly_file_name = "./resources/lineEmpty.txt"
-        polygon1 = Polygon([29, 1321], [80, 88], 2)
-        polygon2 = Polygon([9, 506, 684, 1139], [215, 215, 199, 206], 3)
-        polygon3 = Polygon([32, 537, 621, 1322], [329, 340, 320, 331], 4)
-
-        p_list, error = misc.get_polys_from_file(poly_file_name)
-        if p_list is None and len(misc.load_text_file(poly_file_name)) > 0:
-            print("Skip page..")
-            self.assertEqual(error, True)
-            self.assertEqual(p_list, None)
-            return
-        elif p_list is None and len(misc.load_text_file(poly_file_name)) == 0:
-            print("Empty text file..")
-            self.assertEqual(error, False)
-            self.assertEqual(p_list, None)
-            return
-
-        [p1, p2, p3] = p_list
-
-        self.assertEqual(polygon1.x_points, p1.x_points)
-        self.assertEqual(polygon2.x_points, p2.x_points)
-        self.assertEqual(polygon3.x_points, p3.x_points)
-
-        self.assertEqual(polygon1.y_points, p1.y_points)
-        self.assertEqual(polygon2.y_points, p2.y_points)
-        self.assertEqual(polygon3.y_points, p3.y_points)
-
-        self.assertEqual(error, False)
 
     def test_blow_up(self):
         poly_in = Polygon([0, 3, 4, 5, 7, 5], [1, 3, 5, 3, 1, 0], 6)

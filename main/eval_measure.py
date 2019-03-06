@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import jpype
 import numpy as np
 
@@ -8,8 +10,7 @@ from util.misc import norm_poly_dists, calc_tols
 
 class BaselineMeasureEval(object):
     def __init__(self, min_tol=10, max_tol=30, rel_tol=0.25, poly_tick_dist=5):
-        """
-        Initialize BaselineMeasureEval object.
+        """ Initialize BaselineMeasureEval object.
 
         :param min_tol: MINIMUM distance tolerance which is not penalized
         :param max_tol: MAXIMUM distance tolerance which is not penalized
@@ -28,11 +29,10 @@ class BaselineMeasureEval(object):
         self.measure = BaselineMeasure()
 
     def calc_measure_for_page_baseline_polys(self, polys_truth, polys_reco, use_java_code=True):
-        """
-        NOTE: we can choose between the usage of java (much more faster!!!) or python methods
+        """ Calculates the BaselinMeasure stats for given truth and reco polygons of a single page and adds the results
+        to the BaselineMeasure structure.
 
-        Calculate the BaselinMeasure stats for given truth and reco polygons of
-        a single page and adds the results to the BaselineMeasure structure.
+        NOTE: We can choose between the usage of java (much more faster!!!) or python methods.
 
         :param polys_truth: list of TRUTH polygons corresponding to a single page
         :param polys_reco: list of RECO polygons corresponding to a single page
@@ -86,10 +86,9 @@ class BaselineMeasureEval(object):
         self.truth_line_tols = None
 
     def calc_precision(self, polys_truth, polys_reco):
-        """
-        NOTE: this method will be redundant if we use the java code block in "calc_measure_for_page_baseline_polys"
+        """ Calculates and returns precision values for given truth and reco polygons for all tolerances.
 
-        Calculates and returns precision values for given truth and reco polygons for all tolerances.
+        NOTE: this method will be redundant if we use the java code block in "calc_measure_for_page_baseline_polys"
 
         :param polys_truth: list of TRUTH polygons
         :param polys_reco: list of RECO polygons
@@ -125,11 +124,10 @@ class BaselineMeasureEval(object):
         return precision
 
     def count_rel_hits(self, poly_to_count, poly_ref, tols):
-        """
-        NOTE: this method will be redundant if we use the java code block in "calc_measure_for_page_baseline_polys"
+        """ Counts the relative hits per tolerance value over all points of the polygon and corresponding nearest points
+        of the reference polygon.
 
-        Counts the relative hits per tolerance value over all points of the polygon and corresponding
-        nearest points of the reference polygon.
+        NOTE: this method will be redundant if we use the java code block in "calc_measure_for_page_baseline_polys"
 
         :param poly_to_count: Polygon to count over
         :param poly_ref: reference Polygon
@@ -177,10 +175,9 @@ class BaselineMeasureEval(object):
         return rel_hits
 
     def calc_recall(self, polys_truth, polys_reco):
-        """
-        NOTE: this method will be redundant if we use the java code block in "calc_measure_for_page_baseline_polys"
+        """ Calculates and returns recall values for given truth and reco polygons for all tolerances.
 
-        Calculates and returns recall values for given truth and reco polygons for all tolerances.
+        NOTE: this method will be redundant if we use the java code block in "calc_measure_for_page_baseline_polys"
 
         :param polys_truth: list of TRUTH polygons
         :param polys_reco: list of RECO polygons

@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import sys
 
 
@@ -5,7 +7,7 @@ import sys
 class Rectangle(object):
 
     def __init__(self, x=0, y=0, width=0, height=0):
-        """ constructs a new rectangle
+        """ Constructs a new rectangle.
 
         :param x: (int) x coordinate of the upper left corner of the rectangle
         :param y: (int) y coordinate of the upper left corner of the rectangle
@@ -23,15 +25,15 @@ class Rectangle(object):
         self.height = height
 
     def get_bounds(self):
-        """ gets the bounding rectangle of this rectangle
+        """ Get the bounding rectangle of this rectangle.
 
         :return: (Rectangle) bounding rectangle
         """
         return Rectangle(self.x, self.y, width=self.width, height=self.height)
 
     def translate(self, dx, dy):
-        """ translates this rectangle the indicated distance, to the right along the x coordinate axis, and downward
-            along the y coordinate axis
+        """ Translates this rectangle the indicated distance, to the right along the x coordinate axis, and downward
+        along the y coordinate axis.
 
         :param dx: (int) amount to translate along the x axis
         :param dy: (int) amount to translate along the y axis
@@ -90,7 +92,7 @@ class Rectangle(object):
         self.y = new_v
 
     def intersection(self, r):
-        """ computes the intersection of this rectangle with the specified rectangle
+        """ Computes the intersection of this rectangle with the specified rectangle.
 
         :param r: (Rectangle) specified rectangle
         :return: (Rectangle) a new rectangle presenting the intersection of the two rectangles
@@ -133,7 +135,7 @@ class Rectangle(object):
 class Polygon(object):
 
     def __init__(self, x_points=None, y_points=None, n_points=0):
-        """ constructs a new polygon
+        """ Constructs a new polygon.
 
         :param x_points: (list of ints) list of x coordinates of the polygon
         :param y_points: (list of ints) list of y coordinates of the polygon
@@ -167,7 +169,7 @@ class Polygon(object):
         self.bounds = None  # bounds of this polygon (Rectangle type !!!)
 
     def translate(self, delta_x, delta_y):
-        """ translates the vertices of this polygon by delta_x along the x axis and by delta_y along the y axis
+        """ Translates the vertices of this polygon by delta_x along the x axis and by delta_y along the y axis.
 
         :param delta_x: (int) amount to translate along the x axis
         :param delta_y: (int) amount to translate along the y axis
@@ -183,7 +185,7 @@ class Polygon(object):
             self.bounds.translate(delta_x, delta_y)
 
     def calculate_bounds(self):
-        """ calculates the bounding box of points of the polygon """
+        """ Calculates the bounding box of points of the polygon. """
 
         bounds_min_x = min(self.x_points)
         bounds_min_y = min(self.y_points)
@@ -195,7 +197,7 @@ class Polygon(object):
                                 height=bounds_max_y - bounds_min_y)
 
     def update_bounds(self, x, y):
-        """ resizes the bounding box to accommodate the specified coordinates
+        """ Resizes the bounding box to accommodate the specified coordinates.
 
         :param x: (int) x coordinate
         :param y: (int) y coordinate
@@ -216,7 +218,7 @@ class Polygon(object):
             self.bounds.height = max(self.bounds.height, y - self.bounds.y)
 
     def add_point(self, x, y):
-        """ appends the specified coordinates to this polygon
+        """ Appends the specified coordinates to this polygon.
 
         :param x: (int) x coordinate of the added point
         :param y: (int) y coordinate of the added point
@@ -232,7 +234,7 @@ class Polygon(object):
             self.update_bounds(x, y)
 
     def get_bounding_box(self):
-        """ gets the bounding box of this polygon (= smallest rectangle including this polygon)
+        """ Get the bounding box of this polygon (= smallest rectangle including this polygon).
 
         :return: (Rectangle) rectangle defining the bounds of this polygon
         """

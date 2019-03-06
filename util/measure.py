@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import numpy as np
 
 
@@ -85,12 +87,14 @@ class BaselineMeasure(object):
         avg_precision /= len(self.result.page_wise_precision)
         self.result.precision = avg_precision
 
+    # no usage
     def get_page_wise_true_false_counts_hypo(self, threshold):
         assert type(threshold) == float, "threshold has to be float"
 
         true_false_positives = np.zeros([2, len(self.result.page_wise_per_dist_tol_tick_per_line_precision)])
 
-        for i, per_dist_tol_tick_per_line_precision in enumerate(self.result.page_wise_per_dist_tol_tick_per_line_precision):
+        for i, per_dist_tol_tick_per_line_precision in \
+                enumerate(self.result.page_wise_per_dist_tol_tick_per_line_precision):
             avg_per_line_precision = np.sum(per_dist_tol_tick_per_line_precision, axis=0)
             avg_per_line_precision /= per_dist_tol_tick_per_line_precision.shape[0]
 
@@ -101,6 +105,7 @@ class BaselineMeasure(object):
 
         return true_false_positives
 
+    # no usage
     def get_page_wise_true_false_counts_gt(self, threshold):
         assert type(threshold) == float, "threshold has to be float"
 
@@ -117,6 +122,7 @@ class BaselineMeasure(object):
 
         return true_false_negatives
 
+    # no usage
     def get_specific_page_true_false_constellation(self, page_num, threshold):
         assert type(page_num) == int, "page_num has to be int"
         assert type(threshold) == float, "threshold has to be float"

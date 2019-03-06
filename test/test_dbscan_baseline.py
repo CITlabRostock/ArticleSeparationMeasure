@@ -6,14 +6,14 @@ from util.xmlformats import Page
 from util import dbscan_baseline
 
 
-def get_data_from_pagexml(path_to_pagexml, print_log=True):
+def get_data_from_pagexml(path_to_pagexml):
     """
 
     :param path_to_pagexml: file path
     :return: a list of tuples (text of text line, baseline of text line)
     """
     # load the page xml file
-    page_file = Page.Page(path_to_pagexml, print_log=print_log)
+    page_file = Page.Page(path_to_pagexml)
     # get all text lines of the loaded page file
     list_of_txt_lines = page_file.get_textlines()
 
@@ -64,7 +64,7 @@ def cluster_baselines_dbscan(data, min_polygons_for_cluster=2, des_dist=5, max_d
 
     :param rectangle_ratio: ratio between the width and the height of the rectangles
     :param rectangle_interline_factor: multiplication factor to calculate the height of the rectangles with the help
-                                           of the interline distances
+                                       of the interline distances
     :param bounding_box_epsilon: additional width and height value to calculate the bounding boxes of the polygons
                                  during the clustering progress
     :param min_intersect_ratio: minimum threshold for the intersection being necessary to determine, whether two
@@ -89,16 +89,16 @@ def cluster_baselines_dbscan(data, min_polygons_for_cluster=2, des_dist=5, max_d
 
 
 if __name__ == '__main__':
+    # start java virtual machine to be able to execute the java code
     jpype.startJVM(jpype.getDefaultJVMPath())
 
-    image_paths = [line.rstrip('\n') for line in open("./test/resources/newseye_as_test_data/image_paths.txt", "r")]
-    gt_pagexml_paths = [line.rstrip('\n') for line in
-                        open("./test/resources/newseye_as_test_data/gt_xml_paths.txt", "r")]
-    hy_pagexml_paths = [line.rstrip('\n') for line in
-                        open("./test/resources/newseye_as_test_data/hy_xml_paths.txt", "r")]
+    hypo_files_paths_list = "./test/resources/newseye_as_test_data/hy_xml_paths.lst"
+    hypo_files = [line.rstrip('\n') for line in open(hypo_files_paths_list, "r")]
 
-    for path_to_hypo_file in hy_pagexml_paths:
-        data = get_data_from_pagexml(path_to_hypo_file, print_log=False)
+    for counter, hypo_file in enumerate(hypo_files):
+        print(hypo_file)
+
+        data = get_data_from_pagexml(hypo_file)
 
         article_id_list = \
             cluster_baselines_dbscan(data, min_polygons_for_cluster=2, des_dist=5, max_d=50, min_polygons_for_article=3,
@@ -106,6 +106,9 @@ if __name__ == '__main__':
                                      bounding_box_epsilon=5, min_intersect_ratio=3 / 5,
                                      use_java_code=True)
 
-        save_results_in_pagexml(path_to_hypo_file, article_id_list)
+        save_results_in_pagexml(hypo_file, article_id_list)
 
+        print("Progress: {:.2f} %".format(((counter + 1) / len(hypo_files)) * 100))
+
+    # shut down the java virtual machine
     jpype.shutdownJVM()
