@@ -7,7 +7,7 @@ import cssutils
 from lxml import etree
 from argparse import ArgumentParser
 
-from util.xmlformats.PageObjects import TextLine
+from util.xmlformats.PageObjects import *
 
 # Make sure that the css parser for the custom attribute doesn't spam "WARNING Property: Unknown Property name."
 cssutils.log.setLevel(logging.ERROR)
@@ -46,6 +46,14 @@ class PageXml:
     sCUSTOM_ATTR = "custom"
     sTEXTLINE = "TextLine"
     sBASELINE = "Baseline"
+    sCOORDS = "Coords"
+    sPOINTS_ATTR = "points"
+
+    sREGIONS = {"TextRegion": TextRegion, "ImageRegion": ImageRegion, "LineDrawingRegion": LineDrawingRegion,
+                "GraphicRegion": GraphicRegion, "TableRegion": TableRegion, "ChartRegion": ChartRegion,
+                "SeparatorRegion": SeparatorRegion, "MathsRegion": MathsRegion, "ChemRegion": ChemRegion,
+                "MusicRegion": MusicRegion, "AdvertRegion": AdvertRegion, "NoiseRegion": NoiseRegion,
+                "UnknownRegion": UnknownRegion}
 
     sEXT = ".xml"
 
@@ -414,6 +422,19 @@ class PageXml:
             # cls.set_custom_attr(tl_nd, "structure", "id", tl.get_article_id())
             # cls.set_custom_attr(tl_nd, "structure", "type", "article")
 
+    @classmethod
+    def get_regions(cls, nd):
+        res = {}
+        for r_name in cls.sREGIONS.keys():
+            r_nds = cls.get_child_by_name(nd, r_name)
+            if len(r_nds) > 0:
+                r_class = cls.sREGIONS[r_name]
+                res[r_name] = [r_class(reg.get("id"), cls.parse_custom_attr(reg.get(cls.sCUSTOM_ATTR)),
+                                       cls.get_point_list(
+                                           cls.get_child_by_name(reg, cls.sCOORDS)[0].get(cls.sPOINTS_ATTR)))
+                               for reg in r_nds]
+        return res
+
     # =========== CREATION ===========
     @classmethod
     def create_page_xml_document(cls, creator_name=sCREATOR, filename=None, img_w=0, img_h=0):
@@ -532,7 +553,10 @@ if __name__ == "__main__":
     metadata_nd, page_nd = PageXml.load_metadata_page(page_doc)
 
     textlines = PageXml.get_textlines(page_nd)
-    PageXml.set_textline_attr(page_nd, textlines)
+    # PageXml.set_textline_attr(page_nd, textlines)
+
+    regions = PageXml.get_regions(page_nd)
+    print(regions)
 
     # article_dict = PageXml.get_article_dict(page_nd)
 

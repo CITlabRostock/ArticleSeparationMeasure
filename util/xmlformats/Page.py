@@ -7,7 +7,7 @@ import cssutils
 from lxml import etree
 from argparse import ArgumentParser
 
-from util.xmlformats.PageObjects import TextLine
+from util.xmlformats.PageObjects import *
 
 # Make sure that the css parser for the custom attribute doesn't spam "WARNING Property: Unknown Property name."
 # Make sure that the css parser for the custom attribute doesn't spam "WARNING Property: Unknown Property name."
@@ -52,6 +52,14 @@ class Page:
     sTEXTLINE = "TextLine"
     sBASELINE = "Baseline"
     sCOORDS = "Coords"
+
+    sPOINTS_ATTR = "points"
+
+    sREGIONS = {"TextRegion": TextRegion, "ImageRegion": ImageRegion, "LineDrawingRegion": LineDrawingRegion,
+                "GraphicRegion": GraphicRegion, "TableRegion": TableRegion, "ChartRegion": ChartRegion,
+                "SeparatorRegion": SeparatorRegion, "MathsRegion": MathsRegion, "ChemRegion": ChemRegion,
+                "MusicRegion": MusicRegion, "AdvertRegion": AdvertRegion, "NoiseRegion": NoiseRegion,
+                "UnknownRegion": UnknownRegion}
 
     sEXT = ".xml"
 
@@ -185,7 +193,8 @@ class Page:
         """
         l_nd = self.get_child_by_name(self.page_doc, self.sMETADATA_ELT)
         if len(l_nd) != 1:
-            raise ValueError("PageXml should have exactly one %s node" % self.sMETADATA_ELT)
+            raise ValueError(
+                "PageXml should have exactly one %s node but found %s" % (self.sMETADATA_ELT, str(len(l_nd))))
         dom_nd = l_nd[0]
         assert etree.QName(dom_nd.tag).localname == self.sMETADATA_ELT
         nd1 = dom_nd[0]
@@ -398,12 +407,36 @@ class Page:
 
         return article_dict
 
+    def get_regions(self):
+        res = {}
+        for r_name in self.sREGIONS.keys():
+            r_nds = self.get_child_by_name(self.page_doc, r_name)
+            if len(r_nds) > 0:
+                r_class = self.sREGIONS[r_name]
+                res[r_name] = [r_class(reg.get("id"), self.parse_custom_attr(reg.get(self.sCUSTOM_ATTR)),
+                                       self.get_point_list(
+                                           self.get_child_by_name(reg, self.sCOORDS)[0].get(self.sPOINTS_ATTR)))
+                               for reg in r_nds]
+        return res
+
     def get_textlines(self):
         tl_nds = self.get_child_by_name(self.page_doc, self.sTEXTLINE)
 
-        return [TextLine(tl.get("id"), self.parse_custom_attr(tl.get(self.sCUSTOM_ATTR)), self.get_text_equiv(tl),
-                         self.get_point_list(self.get_child_by_name(tl, self.sBASELINE)[0]), self.get_point_list(tl))
-                for tl in tl_nds]
+        res = []
+        for tl in tl_nds:
+            tl_id = tl.get("id")
+            tl_custom_attr = self.parse_custom_attr(tl.get(self.sCUSTOM_ATTR))
+            tl_text = self.get_text_equiv(tl)
+            tl_bl_nd = self.get_child_by_name(tl, self.sBASELINE)
+            tl_bl = self.get_point_list(tl_bl_nd[0]) if tl_bl_nd else None
+            tl_surr_p = self.get_point_list(tl)
+            res.append(TextLine(tl_id, tl_custom_attr, tl_text, tl_bl, tl_surr_p))
+
+        # return [TextLine(tl.get("id"), self.parse_custom_attr(tl.get(self.sCUSTOM_ATTR)), self.get_text_equiv(tl),
+        #                  self.get_point_list(self.get_child_by_name(tl, self.sBASELINE)[0]), self.get_point_list(tl))
+        #         for tl in tl_nds]
+
+        return res
 
     def set_textline_attr(self, textlines):
         """nd must be the tree node!

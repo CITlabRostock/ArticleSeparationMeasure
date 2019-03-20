@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import os
 
 from util.geometry import Polygon
 # import util.PAGE as PAGE
@@ -17,7 +18,6 @@ from matplotlib.collections import PolyCollection
 DEFAULT_COLOR = 'k'
 
 BASECOLORS = mcolors.BASE_COLORS
-print(BASECOLORS)
 BASECOLORS.pop(DEFAULT_COLOR)
 COLORS = dict(BASECOLORS, **mcolors.CSS4_COLORS)
 by_hsv = sorted((tuple(mcolors.rgb_to_hsv(mcolors.to_rgba(color)[:3])), name)
@@ -116,11 +116,23 @@ def toggle_view(event, views):
             surr_poly.set_visible(not is_visible)
         plt.draw()
 
+    if event.key == 'r' and "regions" in views:
+        for region in views["regions"]:
+            is_visible = region.get_visible()
+            region.set_visible(not is_visible)
+        plt.draw()
+
+    if event.key == 'q':
+        print("Terminate..")
+        exit(0)
+
     if event.key == 'h':
         print("Usage:\n"
               "\ti: toggle image\n"
               "\tb: toggle baselines\n"
               "\tp: toggle surrounding polygons\n"
+              "\tr: toggle regions\n"
+              "\tq: quit\n"
               "\th: show this help")
     else:
         return
@@ -139,13 +151,14 @@ def check_type(lst, t):
     return True
 
 
-def plot(img_path='', baselines_list=[], surr_polys=[], bcolors=[]):
-    fig, ax = plt.subplots()  # type: (plt.Figure, plt.Axes)
+def plot_ax(ax=None, img_path='', baselines_list=[], surr_polys=[], bcolors=[], region_list=[], rcolors=[]):
+    if ax is None:
+        fig, ax = plt.subplots()  # type: # (plt.Figure, plt.Axes)
+        fig.canvas.set_window_title(img_path)
     views = {}
 
     try:
         img_plot = add_image(ax, img_path)
-        fig.canvas.set_window_title(img_path)
         views.update({"image": img_plot})
     except IOError:
         print(f"Can't display image given by path: {img_path}")
@@ -169,33 +182,22 @@ def plot(img_path='', baselines_list=[], surr_polys=[], bcolors=[]):
         surr_poly_collection.set_visible(False)
         views['surr_polys'] = [surr_poly_collection]
 
-    ax.autoscale_view()
+    if region_list:
+        for i, regions in enumerate(region_list):
+            region_collection = add_polygons(ax, regions, rcolors[i], closed=True)
+            region_collection.set_visible(False)
+            if 'regions' in views:
+                views['regions'].append(region_collection)
+            else:
+                views['regions'] = [region_collection]
+
+    # ax.autoscale_view()
 
     # Toggle baselines with "b", image with "i", surrounding polygons with "p"
     plt.connect('key_press_event', lambda event: toggle_view(event, views))
 
-    # Add text
-    # plt.text(0, -20, "image path: {}\n"
-    #                  "gt: {}\n"
-    #                  "hypo: {}".format(img_path, "not implemented yet", "not implemented yet"))
 
-    # Don't show axis
-    plt.axis("off")
-    plt.show()
-
-
-def plot_article_dict(article_dict, path_to_img):
-    # add baselines to the image
-    baselines_list = []
-    for l in article_dict.itervalues():
-        bline_list = []
-        for _, bline in l:
-            bline_list.append(bline)
-        baselines_list.append(bline_list)
-    plot(path_to_img, baselines_list, bcolors=COLORS[:len(baselines_list)])
-
-
-def plot_pagexml(page, path_to_img):
+def plot_pagexml(page, path_to_img, ax=None, plot_article=True):
     if type(page) == str:
         page = Page(page)
     assert type(page) == Page, f"Type must be Page, got {type(page)} instead."
@@ -206,42 +208,146 @@ def plot_pagexml(page, path_to_img):
         bcolors = []
         blines_list = []
     elif None in article_dict:
-        bcolors = COLORS[:len(article_dict) - 1] + [DEFAULT_COLOR]
-        blines_list = [[tline.baseline.points_list for tline in tlines]
+        if plot_article:
+            bcolors = COLORS[:len(article_dict) - 1] + [DEFAULT_COLOR]
+        else:
+            bcolors = [DEFAULT_COLOR] * len(article_dict)
+
+        blines_list = [[tline.baseline.points_list for tline in tlines if tline.baseline]
                        for (a_id, tlines) in article_dict.items() if a_id is not None] \
-                      + [[tline.baseline.points_list for tline in article_dict[None]]]
+                      + [[tline.baseline.points_list for tline in article_dict[None] if tline.baseline]]
     else:
-        bcolors = COLORS[:len(article_dict)]
+        if plot_article:
+            bcolors = COLORS[:len(article_dict)]
+        else:
+            bcolors = [DEFAULT_COLOR] * len(article_dict)
         blines_list = [[tline.baseline.points_list for tline in tlines] for tlines in article_dict.values()]
+
+    region_dict = page.get_regions()
+    if not region_dict:
+        rcolors = []
+        region_list = []
+    else:
+        rcolors = COLORS[:len(region_dict)]
+        region_list = [[region.points.points_list for region in regions] for regions in region_dict.values()]
 
     # get surrounding polygons
     textlines = page.get_textlines()
     surr_polys = [tl.surr_p.points_list for tl in textlines if tl]
 
-    plot(path_to_img, blines_list, surr_polys, bcolors)
+    mng = plt.get_current_fig_manager()
+    mng.resize(*mng.window.maxsize())
+    plot_ax(ax, path_to_img, blines_list, surr_polys, bcolors, region_list, rcolors)
 
-    # # get article-baselines dictionary
-    # ad = page.get_baseline_text_dict(as_poly=True)
-    #
-    # # add baselines and plot
-    # plot_article_dict(ad, path_to_img)
+
+def plot_list(img_lst, hyp_lst, gt_lst=None, plot_article=True, force_equal_names=True):
+    if not img_lst:
+        print(f"No valid image list found: '{img_lst}'.")
+        exit(1)
+    if not img_lst.endswith((".lst", ".txt")) and not os.path.isfile(img_lst):
+        print(f"Image list doesn't have a valid extension or doesn't exist: '{img_lst}'.")
+        exit(1)
+
+    if not hyp_lst:
+        print(f"No valid hypothesis list found: '{hyp_lst}'.")
+        exit(1)
+    if not hyp_lst.endswith((".lst", ".txt")) and not os.path.isfile(hyp_lst):
+        print(f"Hypothesis list doesn't have a valid extension or doesn't exist: '{hyp_lst}'.")
+        exit(1)
+
+    if not gt_lst:
+        print(f"No valid groundtruth list found: '{gt_lst}'")
+    elif not gt_lst.endswith((".lst", ".txt")) and not os.path.isfile(gt_lst):
+        print(f"Groundtruth list doesn't have a valid extension or doesn't exist: '{gt_lst}'.")
+
+    if gt_lst is not None:
+        with open(img_lst, 'r') as img_paths:
+            with open(hyp_lst, 'r') as hyp_paths:
+                with open(gt_lst, 'r') as gt_paths:
+                    for img_path, hyp_path, gt_path in zip(img_paths, hyp_paths, gt_paths):
+                        img_path = img_path.strip()
+                        hyp_path = hyp_path.strip()
+                        gt_path = gt_path.strip()
+                        if not img_path.endswith((".jpg", ".jpeg", ".png", ".tif")) and os.path.isfile(img_path):
+                            print(f"File '{img_path}' does not have a valid image extension (jpg, jpeg, png, tif) "
+                                  f"or is not a file, skipping.")
+                            continue
+                        if force_equal_names:
+                            hyp_page = os.path.basename(hyp_path)
+                            gt_page = os.path.basename(gt_path)
+                            img_name = os.path.basename(img_path)
+                            img_wo_ext = str(img_name.rsplit(".", 1)[0])
+                            if hyp_page != img_wo_ext + ".xml":
+                                print(f"Hypothesis: Filenames don't match: '{hyp_page}' vs. '{img_wo_ext + '.xml'}'"
+                                      f", skipping.")
+                                continue
+                            if gt_page != img_wo_ext + ".xml":
+                                print(f"Groundtruth: Filenames don't match: '{gt_page}' vs. '{img_wo_ext + '.xml'}'"
+                                      f", ignoring.")
+                                fig, ax = plt.subplots()
+                                fig.canvas.set_window_title(img_path)
+                                ax.set_title('Hypothesis')
+
+                                # Should be save to use without opening all images of the loop in a different window
+                                # The program should wait until one window is closed
+                                plot_pagexml(hyp_path, img_path, ax, plot_article)
+                            else:
+                                fig, (ax1, ax2) = plt.subplots(1, 2)
+                                fig.canvas.set_window_title(img_path)
+                                ax1.set_title('Hypothesis')
+                                ax2.set_title('Groundtruth')
+
+                                plot_pagexml(hyp_path, img_path, ax1, plot_article)
+                                plot_pagexml(gt_path, img_path, ax2, plot_article)
+
+                        else:
+                            fig, (ax1, ax2) = plt.subplots(1, 2)
+                            fig.canvas.set_window_title(img_path)
+                            ax1.set_title('Hypothesis')
+                            ax2.set_title('Groundtruth')
+
+                            plot_pagexml(hyp_path, img_path, ax1, plot_article)
+                            plot_pagexml(gt_path, img_path, ax2, plot_article)
+
+                        plt.show()
+
+    else:
+        with open(img_lst, 'r') as img_paths:
+            with open(hyp_lst, 'r') as hyp_paths:
+                for img_path, hyp_path in zip(img_paths, hyp_paths):
+                    img_path = img_path.strip()
+                    hyp_path = hyp_path.strip()
+                    if not img_path.endswith((".jpg", ".jpeg", ".png", ".tif")) and os.path.isfile(img_path):
+                        print(
+                            f"File '{img_path}' does not have a valid image extension (jpg, jpeg, png, tif) or is not"
+                            f" a file, skipping.")
+                        continue
+                    if force_equal_names:
+                        hyp_page = os.path.basename(hyp_path)
+                        img_name = os.path.basename(img_path)
+                        img_wo_ext = str(img_name.rsplit(".", 1)[0])
+                        if hyp_page != img_wo_ext + ".xml":
+                            print(f"Hypothesis: Filenames don't match: '{hyp_page}' vs. '{img_wo_ext + '.xml'}'"
+                                  f", skipping.")
+                            continue
+                    fig, ax = plt.subplots()
+                    fig.canvas.set_window_title(img_path)
+                    ax.set_title('Hypothesis')
+
+                    plot_pagexml(hyp_path, img_path, ax, plot_article)
+
+                    plt.show()
 
 
 if __name__ == '__main__':
-    # img_path = "./test/resources/metrEx.png"
-    # baselines = [[[9, 506, 684, 1139], [220, 220, 204, 211]], [[32, 537, 621, 1322], [334, 345, 325, 336]],
-    #              [[29, 1321], [85, 93]], [[1399, 2342, 2611], [104, 103, 130]], [[1402, 2259, 2599], [220, 211, 229]],
-    #              [[1395, 2228, 2661], [344, 326, 347]]]
-    # surr_poly = [[[0, 500, 500, 0], [0, 0, 500, 500]], [[505, 1005, 1005, 505], [505, 505, 1005, 1005]],
-    #              [[10, 490, 490, 10], [10, 10, 490, 490]]]
+    # path_to_img = "./test/resources/newseye_as_test_data/image_files/0033_nzz_18120804_0_0_a1_p1_1.tif"
+    # path_to_xml = "./test/resources/newseye_as_test_data/xml_files_hy/0033_nzz_18120804_0_0_a1_p1_1.xml"
     #
-    # plot(img_path, [baselines], surr_poly)
-    # # plot(img_path='', baselines=baselines)
+    # plot_pagexml(Page(path_to_xml), path_to_img, plot_article=True)
+    # plt.show()
 
-    # path_to_img = "./test/resources/page_test.tif"
-    # path_to_xml = "./test/resources/page_test.xml"
+    path_to_img_lst = "./test/resources/newseye_as_test_data/image_paths.lst"
+    path_to_hyp_lst = "./test/resources/newseye_as_test_data/hy_xml_paths.lst"
+    path_to_gt_lst = "./test/resources/newseye_as_test_data/gt_xml_paths.lst"
 
-    path_to_xml = "./test/resources/newseye_as_test_data/xml_files_gt/19000715_1-0001.xml"
-    path_to_img = "./test/resources/newseye_as_test_data/image_files/19000715_1-0001.jpg"
-
-    plot_pagexml(Page(path_to_xml), path_to_img)
+    plot_list(path_to_img_lst, path_to_hyp_lst, None, plot_article=True, force_equal_names=True)

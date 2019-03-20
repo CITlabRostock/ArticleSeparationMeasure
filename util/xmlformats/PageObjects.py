@@ -54,10 +54,70 @@ class Region:
     def __init__(self, id, custom, points):
         self.id = id
         self.custom = custom
-        self.points = points
+        self.points = Points(points)
 
 
 class TextRegion(Region):
+    def __init__(self, id, custom, points):
+        super().__init__(id, custom, points)
+
+
+class ImageRegion(Region):
+    def __init__(self, id, custom, points):
+        super().__init__(id, custom, points)
+
+
+class LineDrawingRegion(Region):
+    def __init__(self, id, custom, points):
+        super().__init__(id, custom, points)
+
+
+class GraphicRegion(Region):
+    def __init__(self, id, custom, points):
+        super().__init__(id, custom, points)
+
+
+class TableRegion(Region):
+    def __init__(self, id, custom, points):
+        super().__init__(id, custom, points)
+
+
+class ChartRegion(Region):
+    def __init__(self, id, custom, points):
+        super().__init__(id, custom, points)
+
+
+class SeparatorRegion(Region):
+    def __init__(self, id, custom, points):
+        super().__init__(id, custom, points)
+
+
+class MathsRegion(Region):
+    def __init__(self, id, custom, points):
+        super().__init__(id, custom, points)
+
+
+class ChemRegion(Region):
+    def __init__(self, id, custom, points):
+        super().__init__(id, custom, points)
+
+
+class MusicRegion(Region):
+    def __init__(self, id, custom, points):
+        super().__init__(id, custom, points)
+
+
+class AdvertRegion(Region):
+    def __init__(self, id, custom, points):
+        super().__init__(id, custom, points)
+
+
+class NoiseRegion(Region):
+    def __init__(self, id, custom, points):
+        super().__init__(id, custom, points)
+
+
+class UnknownRegion(Region):
     def __init__(self, id, custom, points):
         super().__init__(id, custom, points)
 
@@ -67,7 +127,7 @@ class TextLine:
         self.id = id  # unique id of textline (str)
         # dictionary of dictionaries, e.g. {'readingOrder':{ 'index':'4' },'structure':{'type':'catch-word'}}
         self.custom = custom  # custom attr holding information like article id (dict of dicts)
-        self.baseline = Points(baseline)  # baseline of textline (Points object)
+        self.baseline = Points(baseline) if baseline else None  # baseline of textline (Points object)
         self.text = text  # text present in the textline
         self.surr_p = Points(surr_p)  # surrounding polygon of textline (Points object)
 
