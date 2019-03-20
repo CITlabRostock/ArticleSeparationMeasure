@@ -14,8 +14,7 @@ from util.xmlformats.PageObjects import *
 cssutils.log.setLevel(logging.ERROR)
 
 logging.basicConfig(filename="./test/resources/Page.log",
-                    format="%(asctime)s:%(levelname)s:%(message)s",
-                    filemode="w")
+                    format="%(asctime)s:%(levelname)s:%(message)s")  # add filemode="w" to overwrite file
 
 
 class PageXmlException(Exception):
