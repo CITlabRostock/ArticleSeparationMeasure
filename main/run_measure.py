@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import sys
 import jpype
 import datetime
 import numpy as np
@@ -59,6 +60,8 @@ def run_eval(truth_file, reco_file, min_tol, max_tol, threshold_tf, java_code=Tr
     :param threshold_tf:
     :param java_code: usage of methods written in java or not
     """
+    # # store the whole console output in a file
+    # sys.stdout = open('results', 'w')
 
     if not (truth_file and reco_file):
         print("No arguments given for <truth> or <reco>, exiting. See --help for usage.")
@@ -97,8 +100,8 @@ def run_eval(truth_file, reco_file, min_tol, max_tol, threshold_tf, java_code=Tr
     pages_article_truth_with_none = []
     pages_article_reco_with_none = []
 
-    num_article_truth, num_poly_truth = 0, 0
-    num_article_reco, num_poly_reco = 0, 0
+    num_article_truth, num_poly_truth_without_none, num_poly_truth_with_none = 0, 0, 0
+    num_article_reco, num_poly_reco_without_none, num_poly_reco_with_none = 0, 0, 0
 
     list_truth_fixed = list_truth[:]
     list_reco_fixed = list_reco[:]
@@ -137,144 +140,239 @@ def run_eval(truth_file, reco_file, min_tol, max_tol, threshold_tf, java_code=Tr
 
                 # Count articles and polygons
                 num_article_truth += len(truth_article_polys_from_file_without_none)
-                num_poly_truth += sum(len(polys) for polys in truth_article_polys_from_file_without_none)
+                num_poly_truth_without_none += sum(len(polys) for polys in truth_article_polys_from_file_without_none)
+                num_poly_truth_with_none += sum(len(polys) for polys in truth_article_polys_from_file_with_none)
+
                 num_article_reco += len(reco_article_polys_from_file_without_none)
-                num_poly_reco += sum(len(polys) for polys in reco_article_polys_from_file_without_none)
+                num_poly_reco_without_none += sum(len(polys) for polys in reco_article_polys_from_file_without_none)
+                num_poly_reco_with_none += sum(len(polys) for polys in reco_article_polys_from_file_with_none)
+
         else:
-            if error_truth:
-                print("Error loading: {}, skipping.".format(list_truth[i]))
-            if error_reco:
-                print("Error loading: {}, skipping.".format(list_reco[i]))
-            list_truth_fixed.remove(list_truth[i])
-            list_reco_fixed.remove(list_reco[i])
+            if truth_article_polys_from_file_with_none is not None and \
+                    reco_article_polys_from_file_with_none is not None:
+
+                if error_truth:
+                    print("Warning loading: {}, only bd measure will be evaluated, since only \"None\" "
+                          "baselines in GT.".format(list_truth[i]))
+                if error_reco:
+                    print("Warning loading: {}, only bd measure will be evaluated, since only \"None\" "
+                          "baselines in HYPO.".format(list_reco[i]))
+
+                pages_article_truth_without_none.append(None)
+                pages_article_reco_without_none.append(None)
+
+                pages_article_truth_with_none.append(truth_article_polys_from_file_with_none)
+                pages_article_reco_with_none.append(reco_article_polys_from_file_with_none)
+
+                # Count polygons
+                num_poly_truth_with_none += sum(len(polys) for polys in truth_article_polys_from_file_with_none)
+                num_poly_reco_with_none += sum(len(polys) for polys in reco_article_polys_from_file_with_none)
+            else:
+                if error_truth:
+                    print("Error loading: {}, skipped.".format(list_truth[i]))
+                if error_reco:
+                    print("Error loading: {}, skipped.".format(list_reco[i]))
+                list_truth_fixed.remove(list_truth[i])
+                list_reco_fixed.remove(list_reco[i])
 
     if len(list_truth) == len(list_truth_fixed):
         print("Everything loaded without errors.")
 
     print("\n{} out of {} GT-HYPO page pairs loaded without errors and used for evaluation.".
           format(len(list_truth_fixed), len(list_truth)))
-    print("Number of GT  : {} lines found in {} articles (without \"None\" class)".
-          format(num_poly_truth, num_article_truth))
-    print("Number of HYPO: {} lines found in {} articles (without \"None\" class)".
-          format(num_poly_reco, num_article_reco))
+    print("Number of GT  : {} lines found in {} articles (exclusive \"None\" class)".
+          format(num_poly_truth_without_none, num_article_truth))
+    print("Number of HYPO: {} lines found in {} articles (exclusive \"None\" class)\n".
+          format(num_poly_reco_without_none, num_article_reco))
+
+    print("Number of GT  : {} lines found (inclusive \"None\" class)".format(num_poly_truth_with_none))
+    print("Number of HYPO: {} lines found (inclusive \"None\" class)".format(num_poly_reco_with_none))
 
     #####################
     # Pagewise Evaluation
     print("\n-----Pagewise Evaluation-----\n")
-    print("{:>15s} {:>10s} {:>10s} {:>10s}  {:^50s}  {:^50s}".
+    print("{:>16s} {:>10s} {:>10s} {:>10s}  {:^50s}  {:^50s}".
           format("Mode", "P-value", "R-value", "F-value", "TruthFile", "HypoFile"))
     print("-" * (15 + 1 + 10 + 1 + 10 + 1 + 10 + 1 + 50 + 1 + 50))
 
-    recall_sum, precision_sum, f_measure_sum = 0, 0, 0
-    recall_weighted_sum, precision_weighted_sum, f_measure_weighted_sum = 0, 0, 0
+    as_recall_sum, as_precision_sum, as_f_measure_sum = 0, 0, 0
+    as_recall_weighted_sum, as_precision_weighted_sum, as_f_measure_weighted_sum = 0, 0, 0
+
+    bd_recall_without_none_sum, bd_precision_without_none_sum, bd_f_measure_without_none_sum = 0, 0, 0
+    bd_recall_with_none_sum, bd_precision_with_none_sum, bd_f_measure_with_none_sum = 0, 0, 0
+
+    with_none_counter, without_none_counter = 0, 0
 
     for page_index, page_articles in enumerate(zip(pages_article_truth_without_none, pages_article_reco_without_none)):
         page_articles_truth = page_articles[0]
         page_articles_reco = page_articles[1]
 
-        # Create precision & recall matrices for article wise comparisons
-        page_wise_article_precision = np.zeros([len(page_articles_truth), len(page_articles_reco)])
-        page_wise_article_recall = np.zeros([len(page_articles_truth), len(page_articles_reco)])
+        if page_articles_truth is None and page_articles_reco is None:
+            with_none_counter += 1
 
-        # Create baseline measure evaluation
-        bl_measure_eval = BaselineMeasureEval(min_tol, max_tol)
+            # Create baseline measure evaluation
+            bl_measure_eval = BaselineMeasureEval(min_tol, max_tol)
 
-        # Evaluate measure for each article
-        for i, article_truth in enumerate(page_articles_truth):
-            for j, article_reco in enumerate(page_articles_reco):
-                bl_measure_eval.calc_measure_for_page_baseline_polys(article_truth, article_reco,
-                                                                     use_java_code=java_code)
-                page_wise_article_precision[i, j] = bl_measure_eval.measure.result.page_wise_precision[-1]
-                page_wise_article_recall[i, j] = bl_measure_eval.measure.result.page_wise_recall[-1]
+            # Evaluate baseline detection measure for entire baseline set with "None" class
+            page_truth_with_none = [poly_truth for article_truth in pages_article_truth_with_none[page_index]
+                                    for poly_truth in article_truth]
+            page_reco_with_none = [poly_reco for article_reco in pages_article_reco_with_none[page_index]
+                                   for poly_reco in article_reco]
 
-        # Evaluate baseline detection measure for entire baseline set without "None" class
-        page_truth_without_none = [poly_truth for article_truth in page_articles_truth for poly_truth in article_truth]
-        page_reco_without_none = [poly_reco for article_reco in page_articles_reco for poly_reco in article_reco]
+            bl_measure_eval.calc_measure_for_page_baseline_polys(page_truth_with_none, page_reco_with_none,
+                                                                 use_java_code=java_code)
+            # R value
+            page_recall_with_none = bl_measure_eval.measure.result.page_wise_recall[-1]
+            bd_recall_with_none_sum += page_recall_with_none
+            # P value
+            page_precision_with_none = bl_measure_eval.measure.result.page_wise_precision[-1]
+            bd_precision_with_none_sum += page_precision_with_none
+            # F value
+            page_f_measure_with_none = util.f_measure(page_precision_with_none, page_recall_with_none)
+            bd_f_measure_with_none_sum += page_f_measure_with_none
 
-        bl_measure_eval.calc_measure_for_page_baseline_polys(page_truth_without_none, page_reco_without_none,
-                                                             use_java_code=java_code)
+            # Output
+            print("{:>16s} {:>10s} {:>10s} {:>10s}  {}  {}".
+                  format("as ind", "-", "-", "-", list_truth_fixed[page_index], list_reco_fixed[page_index]))
+            print("{:>16s} {:>10s} {:>10s} {:>10s}  {}  {}".
+                  format("as weighted, ind", "-", "-", "-", list_truth_fixed[page_index], list_reco_fixed[page_index]))
+            print("{:>16s} {:>10s} {:>10s} {:>10s}  {}  {}".
+                  format("bd without None", "-", "-", "-", list_truth_fixed[page_index], list_reco_fixed[page_index]))
+            print("{:>16s} {:>10.4f} {:>10.4f} {:>10.4f}  {}  {}".
+                  format("bd with None", page_precision_with_none, page_recall_with_none, page_f_measure_with_none,
+                         list_truth_fixed[page_index], list_reco_fixed[page_index]) + "\n")
 
-        page_recall_without_none = bl_measure_eval.measure.result.page_wise_recall[-1]
-        page_precision_without_none = bl_measure_eval.measure.result.page_wise_precision[-1]
-        page_f_measure_without_none = util.f_measure(page_precision_without_none, page_recall_without_none)
+        else:
+            without_none_counter += 1
 
-        # Evaluate baseline detection measure for entire baseline set with "None" class
-        page_truth_with_none = \
-            [poly_truth for article_truth in pages_article_truth_with_none[page_index] for poly_truth in article_truth]
-        page_reco_with_none = \
-            [poly_reco for article_reco in pages_article_reco_with_none[page_index] for poly_reco in article_reco]
+            # Create precision & recall matrices for article wise comparisons
+            page_wise_article_precision = np.zeros([len(page_articles_truth), len(page_articles_reco)])
+            page_wise_article_recall = np.zeros([len(page_articles_truth), len(page_articles_reco)])
 
-        bl_measure_eval.calc_measure_for_page_baseline_polys(page_truth_with_none, page_reco_with_none,
-                                                             use_java_code=java_code)
+            # Create baseline measure evaluation
+            bl_measure_eval = BaselineMeasureEval(min_tol, max_tol)
 
-        page_recall_with_none = bl_measure_eval.measure.result.page_wise_recall[-1]
-        page_precision_with_none = bl_measure_eval.measure.result.page_wise_precision[-1]
-        page_f_measure_with_none = util.f_measure(page_precision_with_none, page_recall_with_none)
+            # Evaluate measure for each article
+            for i, article_truth in enumerate(page_articles_truth):
+                for j, article_reco in enumerate(page_articles_reco):
+                    bl_measure_eval.calc_measure_for_page_baseline_polys(article_truth, article_reco,
+                                                                         use_java_code=java_code)
+                    page_wise_article_precision[i, j] = bl_measure_eval.measure.result.page_wise_precision[-1]
+                    page_wise_article_recall[i, j] = bl_measure_eval.measure.result.page_wise_recall[-1]
 
-        # Greedy alignment of articles
-        #####
-        # 1) Without article weighting; independant alignment
-        greedy_align_precision = greedy_alignment(page_wise_article_precision)
-        greedy_align_recall = greedy_alignment(page_wise_article_recall)
+            # Evaluate baseline detection measure for entire baseline set without "None" class
+            page_truth_without_none = [poly_truth for article_truth in page_articles_truth for poly_truth in article_truth]
+            page_reco_without_none = [poly_reco for article_reco in page_articles_reco for poly_reco in article_reco]
 
-        precision = sum_over_indices(page_wise_article_precision, greedy_align_precision)
-        precision = precision / len(page_articles_reco)
-        precision_sum += precision
+            bl_measure_eval.calc_measure_for_page_baseline_polys(page_truth_without_none, page_reco_without_none,
+                                                                 use_java_code=java_code)
+            # R value
+            page_recall_without_none = bl_measure_eval.measure.result.page_wise_recall[-1]
+            bd_recall_without_none_sum += page_recall_without_none
+            # P value
+            page_precision_without_none = bl_measure_eval.measure.result.page_wise_precision[-1]
+            bd_precision_without_none_sum += page_precision_without_none
+            # F value
+            page_f_measure_without_none = util.f_measure(page_precision_without_none, page_recall_without_none)
+            bd_f_measure_without_none_sum += page_f_measure_without_none
 
-        recall = sum_over_indices(page_wise_article_recall, greedy_align_recall)
-        recall = recall / len(page_articles_truth)
-        recall_sum += recall
+            # Evaluate baseline detection measure for entire baseline set with "None" class
+            page_truth_with_none = [poly_truth for article_truth in pages_article_truth_with_none[page_index]
+                                    for poly_truth in article_truth]
+            page_reco_with_none = [poly_reco for article_reco in pages_article_reco_with_none[page_index]
+                                   for poly_reco in article_reco]
 
-        f_measure = util.f_measure(precision, recall)
-        f_measure_sum += f_measure
+            bl_measure_eval.calc_measure_for_page_baseline_polys(page_truth_with_none, page_reco_with_none,
+                                                                 use_java_code=java_code)
+            # R value
+            page_recall_with_none = bl_measure_eval.measure.result.page_wise_recall[-1]
+            bd_recall_with_none_sum += page_recall_with_none
+            # P value
+            page_precision_with_none = bl_measure_eval.measure.result.page_wise_precision[-1]
+            bd_precision_with_none_sum += page_precision_with_none
+            # F value
+            page_f_measure_with_none = util.f_measure(page_precision_with_none, page_recall_with_none)
+            bd_f_measure_with_none_sum += page_f_measure_with_none
 
-        #####
-        # 2) With article weighting (based on baseline percentage portion of truth/hypo); independant alignment
-        articles_truth_length = np.asarray([len(l) for l in page_articles_truth], dtype=np.float32)
-        articles_reco_length = np.asarray([len(l) for l in page_articles_reco], dtype=np.float32)
-        articles_truth_weighting = articles_truth_length / np.sum(articles_truth_length)
-        articles_reco_weighting = articles_reco_length / np.sum(articles_reco_length)
+            # Greedy alignment of articles
+            #####
+            # 1) Without article weighting; independent alignment
+            greedy_align_precision = greedy_alignment(page_wise_article_precision)
+            greedy_align_recall = greedy_alignment(page_wise_article_recall)
+            # P value
+            precision = sum_over_indices(page_wise_article_precision, greedy_align_precision)
+            precision = precision / len(page_articles_reco)
+            as_precision_sum += precision
+            # R value
+            recall = sum_over_indices(page_wise_article_recall, greedy_align_recall)
+            recall = recall / len(page_articles_truth)
+            as_recall_sum += recall
+            # F value
+            f_measure = util.f_measure(precision, recall)
+            as_f_measure_sum += f_measure
 
-        # column-wise weighting for precision
-        article_wise_precision_weighted = page_wise_article_precision * articles_reco_weighting
+            #####
+            # 2) With article weighting (based on baseline percentage portion of truth/hypo); independent alignment
+            articles_truth_length = np.asarray([len(l) for l in page_articles_truth], dtype=np.float32)
+            articles_reco_length = np.asarray([len(l) for l in page_articles_reco], dtype=np.float32)
+            articles_truth_weighting = articles_truth_length / np.sum(articles_truth_length)
+            articles_reco_weighting = articles_reco_length / np.sum(articles_reco_length)
 
-        # row-wise weighting for recall
-        article_wise_recall_weighted = page_wise_article_recall * np.expand_dims(articles_truth_weighting, axis=1)
+            # column-wise weighting for precision
+            article_wise_precision_weighted = page_wise_article_precision * articles_reco_weighting
 
-        greedy_align_precision_weighted = greedy_alignment(article_wise_precision_weighted)
-        greedy_align_recall_weighted = greedy_alignment(article_wise_recall_weighted)
+            # row-wise weighting for recall
+            article_wise_recall_weighted = page_wise_article_recall * np.expand_dims(articles_truth_weighting, axis=1)
 
-        precision_weighted = sum_over_indices(article_wise_precision_weighted, greedy_align_precision_weighted)
-        precision_weighted_sum += precision_weighted
+            greedy_align_precision_weighted = greedy_alignment(article_wise_precision_weighted)
+            greedy_align_recall_weighted = greedy_alignment(article_wise_recall_weighted)
+            # P value
+            precision_weighted = sum_over_indices(article_wise_precision_weighted, greedy_align_precision_weighted)
+            as_precision_weighted_sum += precision_weighted
+            # R value
+            recall_weighted = sum_over_indices(article_wise_recall_weighted, greedy_align_recall_weighted)
+            as_recall_weighted_sum += recall_weighted
+            # F value
+            f_measure_weighted = util.f_measure(precision_weighted, recall_weighted)
+            as_f_measure_weighted_sum += f_measure_weighted
 
-        recall_weighted = sum_over_indices(article_wise_recall_weighted, greedy_align_recall_weighted)
-        recall_weighted_sum += recall_weighted
-
-        f_measure_weighted = util.f_measure(precision_weighted, recall_weighted)
-        f_measure_weighted_sum += f_measure_weighted
-
-        # Output
-        print("{:>15s} {:>10.4f} {:>10.4f} {:>10.4f}  {}  {}".
-              format("ind", precision, recall, f_measure, list_truth_fixed[page_index], list_reco_fixed[page_index]))
-        print("{:>15s} {:>10.4f} {:>10.4f} {:>10.4f}  {}  {}".
-              format("weighted, ind", precision_weighted, recall_weighted, f_measure_weighted,
-                     list_truth_fixed[page_index], list_reco_fixed[page_index]))
-        print("{:>15s} {:>10.4f} {:>10.4f} {:>10.4f}  {}  {}".
-              format("bd without None", page_precision_without_none, page_recall_without_none,
-                     page_f_measure_without_none, list_truth_fixed[page_index], list_reco_fixed[page_index]))
-        print("{:>15s} {:>10.4f} {:>10.4f} {:>10.4f}  {}  {}".
-              format("bd with None", page_precision_with_none, page_recall_with_none, page_f_measure_with_none,
-                     list_truth_fixed[page_index], list_reco_fixed[page_index]) + "\n")
+            # Output
+            print("{:>16s} {:>10.4f} {:>10.4f} {:>10.4f}  {}  {}".
+                  format("as ind", precision, recall, f_measure,
+                         list_truth_fixed[page_index], list_reco_fixed[page_index]))
+            print("{:>16s} {:>10.4f} {:>10.4f} {:>10.4f}  {}  {}".
+                  format("as weighted, ind", precision_weighted, recall_weighted, f_measure_weighted,
+                         list_truth_fixed[page_index], list_reco_fixed[page_index]))
+            print("{:>16s} {:>10.4f} {:>10.4f} {:>10.4f}  {}  {}".
+                  format("bd without None", page_precision_without_none, page_recall_without_none,
+                         page_f_measure_without_none, list_truth_fixed[page_index], list_reco_fixed[page_index]))
+            print("{:>16s} {:>10.4f} {:>10.4f} {:>10.4f}  {}  {}".
+                  format("bd with None", page_precision_with_none, page_recall_with_none, page_f_measure_with_none,
+                         list_truth_fixed[page_index], list_reco_fixed[page_index]) + "\n")
 
     ##################
     # Final Evaluation
     print("\n-----Final Evaluation-----\n")
-    print("Average P-value  (ind): {:.4f}".format(precision_sum / len(list_truth_fixed)) +
-          "  Average P-value  (weighted, ind): {:.4f}".format(precision_weighted_sum / len(list_truth_fixed)))
-    print("Average R-value  (ind): {:.4f}".format(recall_sum / len(list_truth_fixed)) +
-          "  Average R-value  (weighted, ind): {:.4f}".format(recall_weighted_sum / len(list_truth_fixed)))
-    print("Average F1-score (ind): {:.4f}".format(f_measure_sum / len(list_truth_fixed)) +
-          "  Average F1-score (weighted, ind): {:.4f}".format(f_measure_weighted_sum / len(list_truth_fixed)) + "\n")
+    print("AS scores:\n")
+    print("Average P-value  (ind): {:.4f}".format(as_precision_sum / without_none_counter) +
+          "  Average P-value  (weighted, ind): {:.4f}".format(as_precision_weighted_sum / without_none_counter))
+    print("Average R-value  (ind): {:.4f}".format(as_recall_sum / without_none_counter) +
+          "  Average R-value  (weighted, ind): {:.4f}".format(as_recall_weighted_sum / without_none_counter))
+    print("Average F1-score (ind): {:.4f}".format(as_f_measure_sum / without_none_counter) +
+          "  Average F1-score (weighted, ind): {:.4f}".format(as_f_measure_weighted_sum / without_none_counter))
+
+    print("\nBD scores:\n")
+    print("Average P-value  (without \"None\"): {:.4f}".format(bd_precision_without_none_sum / without_none_counter) +
+          "  Average P-value  (with \"None\"): {:.4f}".
+          format(bd_precision_with_none_sum / (without_none_counter + with_none_counter)))
+    print("Average R-value  (without \"None\"): {:.4f}".format(bd_recall_without_none_sum / without_none_counter) +
+          "  Average R-value  (with \"None\"): {:.4f}".
+          format(bd_recall_with_none_sum / (without_none_counter + with_none_counter)))
+    print("Average F1-score (without \"None\"): {:.4f}".format(bd_f_measure_without_none_sum / without_none_counter) +
+          "  Average F1-score (with \"None\"): {:.4f}".
+          format(bd_f_measure_with_none_sum / (without_none_counter + with_none_counter)))
+
+    # sys.stdout.close()
 
 
 if __name__ == '__main__':
@@ -320,25 +418,34 @@ if __name__ == '__main__':
     # run_eval(flags.truth, flags.reco, min_tol=flags.min_tol, max_tol=flags.max_tol, threshold_tf=flags.threshold_tf,
     #          java_code=flags.java_code)
 
-    # example with PageXml files
+    # example with list of PageXml files
     gt_files_path_list = "./test/resources/newseye_as_test_data/gt_xml_paths.lst"
     hy_files_path_list = "./test/resources/newseye_as_test_data/hy_xml_paths.lst"
+
+    # gt_files_path_list = "./test/resources/newseye_as_test_data_onb/gt_xml_paths.lst"
+    # hy_files_path_list = "./test/resources/newseye_as_test_data_onb/hy_xml_paths.lst"
+
+    # gt_files_path_list = "./test/resources/Le_Matin_Set/gt_xml_paths.lst"
+    # hy_files_path_list = "./test/resources/Le_Matin_Set/hy_xml_paths.lst"
+
     run_eval(gt_files_path_list, hy_files_path_list, min_tol=-1, max_tol=-1, threshold_tf=-1, java_code=True)
 
-    # gt_files_path_list = "../../Le_Matin_Set/gt_xml_paths.lst"
-    # hy_files_path_list = "../../Le_Matin_Set/hy_xml_paths.lst"
-    # run_eval(gt_files_path_list, hy_files_path_list, min_tol=-1, max_tol=-1, threshold_tf=-1, java_code=True)
-
-    # # example with txt files
-    # gt_files_path_list = "./test/resources/perfect_bd_as_test_data/gt_txt_paths.lst"
-    # hy_files_path_list = "./test/resources/perfect_bd_as_test_data/hy_txt_paths.lst"
-    # run_eval(gt_files_path_list, hy_files_path_list, min_tol=-1, max_tol=-1, threshold_tf=-1, java_code=True)
-
-    # # example for the evaluation of one special page
+    # example for the evaluation of one special page
     # newspaper_site = "19000715_1-0001.xml"
     # gt_files_path_list = "./test/resources/newseye_as_test_data/xml_files_gt/" + newspaper_site
     # hy_files_path_list = "./test/resources/newseye_as_test_data/xml_files_hy/" + newspaper_site
     # run_eval(gt_files_path_list, hy_files_path_list, min_tol=-1, max_tol=-1, threshold_tf=-1, java_code=True)
+
+    # example with txt files (perfect bd)
+    # gt_files_path_list = "./test/resources/perfect_bd_as_test_data/gt_txt_paths.lst"
+    # hy_files_path_list = "./test/resources/perfect_bd_as_test_data/hy_txt_paths.lst"
+    # run_eval(gt_files_path_list, hy_files_path_list, min_tol=-1, max_tol=-1, threshold_tf=-1, java_code=True)
+
+    # example with txt files (imperfect bd)
+    # gt_files_path_list = "./test/resources/imperfect_bd_as_test_data/gt_txt_paths.lst"
+    # hy_files_path_list = "./test/resources/imperfect_bd_as_test_data/hy_txt_paths.lst"
+    # run_eval(gt_files_path_list, hy_files_path_list, min_tol=-1, max_tol=-1, threshold_tf=-1, java_code=True)
+    # # run_eval(gt_files_path_list, hy_files_path_list, min_tol=5, max_tol=25, threshold_tf=-1, java_code=True)
 
     # shut down the java virtual machine
     jpype.shutdownJVM()

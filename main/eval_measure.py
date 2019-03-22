@@ -73,7 +73,7 @@ class BaselineMeasureEval(object):
                 tols = calc_tols(polys_truth_norm, self.poly_tick_dist, 250, self.rel_tol)
                 self.truth_line_tols = np.expand_dims(tols, axis=1)
             else:
-                self.truth_line_tols = np.tile(self.max_tols, [len(polys_truth_norm), 1])
+                self.truth_line_tols = np.tile(self.max_tols, [len(polys_truth_norm), 1]).astype(float)
 
             # For each reco poly calculate the precision values for all tolerances
             precision = self.calc_precision(polys_truth_norm, polys_reco_norm)

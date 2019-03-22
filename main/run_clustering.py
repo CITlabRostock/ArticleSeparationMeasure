@@ -105,7 +105,9 @@ if __name__ == "__main__":
     # hypo_files = [line.rstrip('\n') for line in open(hypo_files_paths_list, "r")]
 
     hypo_files_paths_list = "./test/resources/newseye_as_test_data/hy_xml_paths.lst"
-    # hypo_files_paths_list = "../../Le_Matin_Set/hy_xml_paths.lst"
+    # hypo_files_paths_list = "./test/resources/newseye_as_test_data_onb/hy_xml_paths.lst"
+    # hypo_files_paths_list = "./test/resources/Le_Matin_Set/hy_xml_paths.lst"
+
     hypo_files = [line.rstrip('\n') for line in open(hypo_files_paths_list, "r")]
 
     for counter, hypo_file in enumerate(hypo_files):
