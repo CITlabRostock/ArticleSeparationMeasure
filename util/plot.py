@@ -172,6 +172,7 @@ def plot_ax(ax=None, img_path='', baselines_list=[], surr_polys=[], bcolors=[], 
     if baselines_list:
         for i, blines in enumerate(baselines_list):
             baseline_collection = add_polygons(ax, blines, bcolors[i], closed=False)
+            # ax.legend([baseline_collection], ["a-id" + str(i)])
             if 'baselines' in views:
                 views['baselines'].append(baseline_collection)
             else:
@@ -235,8 +236,10 @@ def plot_pagexml(page, path_to_img, ax=None, plot_article=True):
     textlines = page.get_textlines()
     surr_polys = [tl.surr_p.points_list for tl in textlines if tl]
 
+    # Maximize plotting window
     mng = plt.get_current_fig_manager()
     mng.resize(*mng.window.maxsize())
+
     plot_ax(ax, path_to_img, blines_list, surr_polys, bcolors, region_list, rcolors)
 
 
