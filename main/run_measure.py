@@ -353,24 +353,45 @@ def run_eval(truth_file, reco_file, min_tol, max_tol, threshold_tf, java_code=Tr
     ##################
     # Final Evaluation
     print("\n-----Final Evaluation-----\n")
-    print("AS scores:\n")
-    print("Average P-value  (ind): {:.4f}".format(as_precision_sum / without_none_counter) +
-          "  Average P-value  (weighted, ind): {:.4f}".format(as_precision_weighted_sum / without_none_counter))
-    print("Average R-value  (ind): {:.4f}".format(as_recall_sum / without_none_counter) +
-          "  Average R-value  (weighted, ind): {:.4f}".format(as_recall_weighted_sum / without_none_counter))
-    print("Average F1-score (ind): {:.4f}".format(as_f_measure_sum / without_none_counter) +
-          "  Average F1-score (weighted, ind): {:.4f}".format(as_f_measure_weighted_sum / without_none_counter))
 
-    print("\nBD scores:\n")
-    print("Average P-value  (without \"None\"): {:.4f}".format(bd_precision_without_none_sum / without_none_counter) +
-          "  Average P-value  (with \"None\"): {:.4f}".
-          format(bd_precision_with_none_sum / (without_none_counter + with_none_counter)))
-    print("Average R-value  (without \"None\"): {:.4f}".format(bd_recall_without_none_sum / without_none_counter) +
-          "  Average R-value  (with \"None\"): {:.4f}".
-          format(bd_recall_with_none_sum / (without_none_counter + with_none_counter)))
-    print("Average F1-score (without \"None\"): {:.4f}".format(bd_f_measure_without_none_sum / without_none_counter) +
-          "  Average F1-score (with \"None\"): {:.4f}".
-          format(bd_f_measure_with_none_sum / (without_none_counter + with_none_counter)))
+    if without_none_counter != 0:
+        print("AS scores:\n")
+        print("Average P-value  (ind): {:.4f}".format(as_precision_sum / without_none_counter) +
+              "  Average P-value  (weighted, ind): {:.4f}".format(as_precision_weighted_sum / without_none_counter))
+        print("Average R-value  (ind): {:.4f}".format(as_recall_sum / without_none_counter) +
+              "  Average R-value  (weighted, ind): {:.4f}".format(as_recall_weighted_sum / without_none_counter))
+        print("Average F1-score (ind): {:.4f}".format(as_f_measure_sum / without_none_counter) +
+              "  Average F1-score (weighted, ind): {:.4f}".format(as_f_measure_weighted_sum / without_none_counter))
+
+        print("\nBD scores:\n")
+        print("Average P-value  (without \"None\"): {:.4f}".format(bd_precision_without_none_sum / without_none_counter) +
+              "  Average P-value  (with \"None\"): {:.4f}".
+              format(bd_precision_with_none_sum / (without_none_counter + with_none_counter)))
+        print("Average R-value  (without \"None\"): {:.4f}".format(bd_recall_without_none_sum / without_none_counter) +
+              "  Average R-value  (with \"None\"): {:.4f}".
+              format(bd_recall_with_none_sum / (without_none_counter + with_none_counter)))
+        print("Average F1-score (without \"None\"): {:.4f}".format(bd_f_measure_without_none_sum / without_none_counter) +
+              "  Average F1-score (with \"None\"): {:.4f}".
+              format(bd_f_measure_with_none_sum / (without_none_counter + with_none_counter)))
+    else:
+        print("AS scores:\n")
+        print("Average P-value  (ind): {:>4s}".format("-") +
+              "  Average P-value  (weighted, ind): {:>4s}".format("-"))
+        print("Average R-value  (ind): {:>4s}".format("-") +
+              "  Average R-value  (weighted, ind): {:>4s}".format("-"))
+        print("Average F1-score (ind): {:>4s}".format("-") +
+              "  Average F1-score (weighted, ind): {:>4s}".format("-"))
+
+        print("\nBD scores:\n")
+        print("Average P-value  (without \"None\"): {:>4s}".format("-") +
+              "  Average P-value  (with \"None\"): {:.4f}".
+              format(bd_precision_with_none_sum / (without_none_counter + with_none_counter)))
+        print("Average R-value  (without \"None\"): {:>4s}".format("-") +
+              "  Average R-value  (with \"None\"): {:.4f}".
+              format(bd_recall_with_none_sum / (without_none_counter + with_none_counter)))
+        print("Average F1-score (without \"None\"): {:>4s}".format("-") +
+              "  Average F1-score (with \"None\"): {:.4f}".
+              format(bd_f_measure_with_none_sum / (without_none_counter + with_none_counter)))
 
     # sys.stdout.close()
 
@@ -419,8 +440,11 @@ if __name__ == '__main__':
     #          java_code=flags.java_code)
 
     # example with list of PageXml files
-    gt_files_path_list = "./test/resources/newseye_as_test_data/gt_xml_paths.lst"
-    hy_files_path_list = "./test/resources/newseye_as_test_data/hy_xml_paths.lst"
+    gt_files_path_list = "./test/resources/bug_data/gt_xml_paths.lst"
+    hy_files_path_list = "./test/resources/bug_data/hy_xml_paths.lst"
+
+    # gt_files_path_list = "./test/resources/newseye_as_test_data/gt_xml_paths.lst"
+    # hy_files_path_list = "./test/resources/newseye_as_test_data/hy_xml_paths.lst"
 
     # gt_files_path_list = "./test/resources/newseye_as_test_data_onb/gt_xml_paths.lst"
     # hy_files_path_list = "./test/resources/newseye_as_test_data_onb/hy_xml_paths.lst"
