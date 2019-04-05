@@ -120,7 +120,15 @@ def get_article_polys_from_file(poly_file_name):
             return None, None, True
 
         # with "None" class
-        res_with_none = [[a_poly.baseline.to_polygon() for a_poly in a_polys] for a_polys in ad.values()]
+        res_with_none = []
+        for a_polys in ad.values():
+            a = []
+            for a_poly in a_polys:
+                if a_poly.baseline:
+                    a.append(a_poly.baseline.to_polygon())
+                else:
+                    print(f"No baseline found: Skipping text line with id '{a_poly.id}' from file '{poly_file_name}'.")
+            res_with_none.append(a)
 
         # without "None" class
         res_without_none = []

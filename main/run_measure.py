@@ -434,14 +434,14 @@ if __name__ == '__main__':
     # start java virtual machine to be able to execute the java code
     jpype.startJVM(jpype.getDefaultJVMPath())
 
-    # # example with Command-line arguments
-    # flags = parser.parse_args()
-    # run_eval(flags.truth, flags.reco, min_tol=flags.min_tol, max_tol=flags.max_tol, threshold_tf=flags.threshold_tf,
-    #          java_code=flags.java_code)
+    # example with Command-line arguments
+    flags = parser.parse_args()
+    run_eval(flags.truth, flags.reco, min_tol=flags.min_tol, max_tol=flags.max_tol, threshold_tf=flags.threshold_tf,
+             java_code=flags.java_code)
 
-    # example with list of PageXml files
-    gt_files_path_list = "./test/resources/bug_data/gt_xml_paths.lst"
-    hy_files_path_list = "./test/resources/bug_data/hy_xml_paths.lst"
+    # # example with list of PageXml files
+    # gt_files_path_list = "./test/resources/bug_data/gt_xml_paths.lst"
+    # hy_files_path_list = "./test/resources/bug_data/hy_xml_paths.lst"
 
     # gt_files_path_list = "./test/resources/newseye_as_test_data/gt_xml_paths.lst"
     # hy_files_path_list = "./test/resources/newseye_as_test_data/hy_xml_paths.lst"
@@ -452,7 +452,7 @@ if __name__ == '__main__':
     # gt_files_path_list = "./test/resources/Le_Matin_Set/gt_xml_paths.lst"
     # hy_files_path_list = "./test/resources/Le_Matin_Set/hy_xml_paths.lst"
 
-    run_eval(gt_files_path_list, hy_files_path_list, min_tol=-1, max_tol=-1, threshold_tf=-1, java_code=True)
+    # run_eval(gt_files_path_list, hy_files_path_list, min_tol=-1, max_tol=-1, threshold_tf=-1, java_code=True)
 
     # example for the evaluation of one special page
     # newspaper_site = "19000715_1-0001.xml"
