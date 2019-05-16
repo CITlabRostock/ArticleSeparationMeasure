@@ -4,10 +4,8 @@ import os
 from util.geometry import Polygon
 # import util.PAGE as PAGE
 from util.xmlformats.Page import Page
-from util.xmlformats import PageObjects
 
 import random
-import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
 
@@ -68,6 +66,7 @@ def add_image(axes, path):
     """
     try:
         img = Image.open(path)
+        img = img.convert("RGB")
         return axes.imshow(img)
     except ValueError:
         print("Can't add image to the plot. Check if '{}' is a valid path.".format(path))
@@ -172,7 +171,8 @@ def plot_ax(ax=None, img_path='', baselines_list=[], surr_polys=[], bcolors=[], 
     if baselines_list:
         for i, blines in enumerate(baselines_list):
             baseline_collection = add_polygons(ax, blines, bcolors[i], closed=False)
-            # ax.legend([baseline_collection], ["a-id" + str(i)])
+            # TODO: change Article ID to the original ID!!
+            baseline_collection.set_label("a-id " + str(i))
             if 'baselines' in views:
                 views['baselines'].append(baseline_collection)
             else:
@@ -191,6 +191,12 @@ def plot_ax(ax=None, img_path='', baselines_list=[], surr_polys=[], bcolors=[], 
                 views['regions'].append(region_collection)
             else:
                 views['regions'] = [region_collection]
+
+    # Add article ids to the legend
+    # TODO: Sometimes there are too many articles to display -> possibility to scroll?!
+    article_collection = [coll for coll in ax.collections if coll.get_label().startswith("a-id")]
+    ax.legend(article_collection, [coll.get_label() for coll in article_collection], bbox_to_anchor=[1.0, 1.0], loc="upper left")
+    # ax.legend(ax.collections, ["a-id " + str(i) for i in range(len(ax.collections))], loc="upper left", bbox_to_anchor=(1.1, 1.05))
 
     # ax.autoscale_view()
 
