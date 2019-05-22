@@ -47,6 +47,7 @@ class Page:
     sLAST_CHANGE_ELT = "LastChange"
     sCOMMENTS_ELT = "Comments"
     sTranskribusMetadata_ELT = "TranskribusMetadata"
+    sPRINT_SPACE = "PrintSpace"
     sCUSTOM_ATTR = "custom"
     sTEXTLINE = "TextLine"
     sBASELINE = "Baseline"
@@ -405,6 +406,23 @@ class Page:
                 article_dict[a_id] = [tl]
 
         return article_dict
+
+    def get_print_space_coords(self):
+        ps_nd = self.get_child_by_name(self.page_doc, self.sPRINT_SPACE)
+
+        if len(ps_nd != 1):
+            print(f"Expected exactly one {self.sPRINT_SPACE} node, but got {len(ps_nd)}.")
+            exit(1)
+
+        ps_nd = ps_nd[0]
+
+        # we assume that the PrintSpace is given as a rectangle, thus having four coordinates
+        ps_coords = self.get_point_list(self.get_child_by_name(ps_nd, self.sCOORDS)[0].get(self.sPOINTS_ATTR))
+        if len(ps_coords != 4):
+            print(f"Expected exactly four rectangle coordinates, but got {len(ps_coords)}.")
+            exit(1)
+
+        return ps_coords
 
     def get_regions(self):
         res = {}

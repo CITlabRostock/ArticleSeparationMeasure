@@ -2,8 +2,11 @@
 
 import sys
 
-
 # rectangle class
+import numpy as np
+from util.xmlformats import PageObjects
+
+
 class Rectangle(object):
 
     def __init__(self, x=0, y=0, width=0, height=0):
@@ -247,19 +250,250 @@ class Polygon(object):
         return self.bounds.get_bounds()
 
 
+class ArticleRectangle(Rectangle):
+
+    def __init__(self, x=0, y=0, width=0, height=0, textlines=None, article_ids=None):
+        super().__init__(x, y, width, height)
+        self.textlines = textlines
+        if article_ids is None:
+            # article_ids = set()
+            self.a_ids = self.get_articles()
+        else:
+            self.a_ids = article_ids
+
+    def get_articles(self):
+        # traverse the baselines/textlines and check the article id
+        article_set = set()
+        for tl in self.textlines:
+            article_set.add(tl.get_article_id())
+
+        return article_set
+
+    def contains_polygon(self, polygon, x, y, width, height):
+        """Checks if a polygon intersects with (or lies within) a (sub)rectangle given by the coordinates x,y
+        (upper left point) and the width and height of the rectangle."""
+
+        # iterate over the points of the polygon
+        for i in range(polygon.n_points - 1):
+            line_segment_bl = [polygon.x_points[i:i + 2], polygon.y_points[i:i + 2]]
+
+            # The baseline segment lies outside the rectangle completely to the right/left/top/bottom
+            if max(line_segment_bl[0]) <= x or min(line_segment_bl[0]) >= x + width or max(
+                    line_segment_bl[1]) <= y or min(
+                line_segment_bl[1]) >= y + height:
+                return False
+
+            # The baseline segment lies inside the rectangle
+            if min(line_segment_bl[0]) >= x and max(line_segment_bl[0]) <= x + width and min(
+                    line_segment_bl[1]) >= y and max(line_segment_bl[1]) <= y + height:
+                return True
+
+            # The baseline segment intersects with the rectangle or lies outside the rectangle but doesn't lie
+            # completely right/left/top/bottom
+            # First check intersection with the vertical line segments of the rectangle
+            line_segment_rect_left = [[x, x], [y, y + height]]
+            if check_intersection(line_segment_bl, line_segment_rect_left) is not None:
+                return True
+            line_segment_rect_right = [[x + width, x + width], [y, y + height]]
+            if check_intersection(line_segment_bl, line_segment_rect_right) is not None:
+                return True
+
+            # Check other two sides
+            line_segment_rect_top = [[x, x + width], [y, y]]
+            if check_intersection(line_segment_bl, line_segment_rect_top) is not None:
+                return True
+            line_segment_rect_bottom = [[x, x + width], [y + height, y + height]]
+            if check_intersection(line_segment_bl, line_segment_rect_bottom) is not None:
+                return True
+
+        return False
+
+    def create_subregions(self, ar_list=None):
+
+        # width1 equals width2 if width is even, else width2 = width1 + 1
+        # same for height1 and height2
+        if ar_list is None:
+            ar_list = []
+        width1 = self.width // 2
+        width2 = self.width - width1
+        height1 = self.height // 2
+        height2 = self.height - height1
+
+        print(self.x, self.y, width1, height1, width2, height2)
+
+        #########################
+        #           #           #
+        #     I     #     II    #
+        #           #           #
+        #########################
+        #           #           #
+        #    III    #     IV    #
+        #           #           #
+        #########################
+
+        # determine textlines for each subregion
+        tl1 = []
+        tl2 = []
+        tl3 = []
+        tl4 = []
+        a_ids1 = set()
+        a_ids2 = set()
+        a_ids3 = set()
+        a_ids4 = set()
+
+        for tl in self.textlines:
+            # get baseline
+            bl = tl.baseline.to_polygon()
+            contains_polygon = self.contains_polygon(bl, self.x, self.y, width1, height1)
+            if contains_polygon:
+                tl1 += [tl]
+                a_ids1.add(tl.get_article_id())
+                # continue
+            contains_polygon = self.contains_polygon(bl, self.x + width1, self.y, width2, height1)
+            if contains_polygon:
+                tl2 += [tl]
+                a_ids2.add(tl.get_article_id())
+                # continue
+            contains_polygon = self.contains_polygon(bl, self.x, self.y + height1, width1, height2)
+            if contains_polygon:
+                tl3 += [tl]
+                a_ids3.add(tl.get_article_id())
+                # continue
+            contains_polygon = self.contains_polygon(bl, self.x + width1, self.y + height1, width2, height2)
+            if contains_polygon:
+                tl4 += [tl]
+                a_ids4.add(tl.get_article_id())
+                # continue
+
+        a_rect1 = ArticleRectangle(self.x, self.y, width1, height1, tl1, a_ids1)
+        a_rect2 = ArticleRectangle(self.x + width1, self.y, width2, height1, tl2, a_ids2)
+        a_rect3 = ArticleRectangle(self.x, self.y + height1, width1, height2, tl3, a_ids3)
+        a_rect4 = ArticleRectangle(self.x + width1, self.y + height1, width2, height2, tl4, a_ids4)
+
+        # run create_subregions on Rectangles that contain more than one TextLine object
+        for a_rect in [a_rect1, a_rect2, a_rect3, a_rect4]:
+            if len(a_rect.a_ids) > 1:
+                a_rect.create_subregions(ar_list)
+            else:
+                ar_list.append(a_rect)
+
+        return ar_list
+
+
+def check_intersection(line1, line2):
+    """Checks if two line segments `line1` and `line2` intersect. If they do so, the function returns the intersection point as [x,y]
+    coordinate, otherwise `None`.
+
+    :param line1: list containing the x- and y-coordinates as [[x1,x2],[y1,y2]]
+    :param line2: list containing the x- and y-coordinates as [[x1,x2],[y1,y2]]
+    :return: intersection point [x,y] if the line segments intersect, None otherwise
+    """
+    x_points1_, y_points1_ = line1
+    x_points2_, y_points2_ = line2
+
+    # consider parametric form
+    x_points1 = [x_points1_[0], x_points1_[1] - x_points1_[0]]
+    x_points2 = [x_points2_[0], x_points2_[1] - x_points2_[0]]
+    y_points1 = [y_points1_[0], y_points1_[1] - y_points1_[0]]
+    y_points2 = [y_points2_[0], y_points2_[1] - y_points2_[0]]
+
+    A = np.array([[x_points2[1], x_points1[1]], [y_points2[1], y_points1[1]]])
+    b = np.array([x_points1[0] - x_points2[0], y_points1[0] - y_points2[0]])
+
+    rank_A = np.linalg.matrix_rank(A)
+    rank_Ab = np.linalg.matrix_rank(np.c_[A, b])
+
+    # no solution -> parallel
+    if rank_A != rank_Ab:
+        return None
+
+    # infinite solutions -> one line is the multiple of the other
+    if rank_A == rank_Ab == 1:
+        # Need to check if there is an overlap
+
+        # otherwise there is no overlap and no intersection
+        return None
+
+    [s, t_neg] = np.linalg.inv(A).dot(b)
+    # print(f"s: {s} and t: {-t_neg}")
+    # print(0 < s < 1 and 0 < -t_neg < 1)
+    if not (0 < s < 1 and 0 < -t_neg < 1):
+        return None
+
+    return [x_points2[0] + s * x_points2[1], y_points2[0] + s * y_points2[1]]
+
+    # # if x_points1[0] == x_points2[0] and y_points1[0] == y_points2[0]:
+    # #     return [x_points1[0], y_points1[0]]
+    #
+    # det = x_points2[1] * y_points1[1] - x_points1[1] * y_points2[1]
+    #
+    # # the line segments are parallel
+    # if det == 0:
+    #     return None
+    #
+    # s = (y_points1[1] * (x_points1[0] - x_points2[0]) - x_points1[1] * (y_points1[0] - y_points2[0])) / det
+    # t = (y_points2[1] * (x_points1[0] - x_points2[0]) - x_points2[1] * (y_points1[0] - y_points2[0])) / det
+    #
+    # if not (0 <= s <= 1 and 0 <= t <= 1):
+    #     return None
+    #
+    # return [x_points2[0] + s * x_points2[1], y_points2[0] + s * y_points2[1]]
+
+
 if __name__ == '__main__':
-    p = Polygon([1, 2, 4, 6, 7], [2, 4, 2, 3, 1], 5)
+    # p = Polygon([1, 2, 4, 6, 7], [2, 4, 2, 3, 1], 5)
+    #
+    # print(p.x_points)
+    # print(p.y_points, "\n")
+    #
+    # p.calculate_bounds()
+    # print("(", p.bounds.x, ", ", p.bounds.y, ")", "  width = ", p.bounds.width, "  height = ", p.bounds.height, "\n")
+    #
+    # p.add_point(7, 1)
+    # print("(", p.bounds.x, ", ", p.bounds.y, ")", "  width = ", p.bounds.width, "  height = ", p.bounds.height, "\n")
+    #
+    # r = Rectangle(1, 2, 5, 3)
+    #
+    # int_r = r.intersection(Rectangle(1, 2, 0, 0))
+    # print("(", int_r.x, ", ", int_r.y, ")", "  width = ", int_r.width, "  height = ", int_r.height)
 
-    print(p.x_points)
-    print(p.y_points, "\n")
+    # line1 = [[0, 0], [0, 2]]
+    # line2 = [[2, 2], [-1, 2]]
+    #
+    # line1 = [[0, 0], [0, 2]]
+    # line2 = [[1, 3], [1, 2]]
+    #
+    # line1 = [[0, 0], [0, 2]]
+    # line2 = [[-1, 3], [0, 2]]
+    #
+    # line1 = [[0, 0], [0, 2]]
+    # line2 = [[0, 2], [0, 2]]
+    #
+    # lineR1 = [[0, 3], [3, 3]]
+    # lineR2 = [[3, 3], [3, 6]]
+    # lineR3 = [[0, 3], [6, 6]]
+    # lineR4 = [[0, 0], [3, 6]]
+    # lineB = [[2, 7], [7, 5]]
+    #
+    # print(check_intersection(lineR1, lineB))
+    # print(check_intersection(lineR2, lineB))
+    # print(check_intersection(lineR3, lineB))
+    # print(check_intersection(lineR4, lineB))
 
-    p.calculate_bounds()
-    print("(", p.bounds.x, ", ", p.bounds.y, ")", "  width = ", p.bounds.width, "  height = ", p.bounds.height, "\n")
+    tl1 = PageObjects.TextLine("id", {"structure": {"id": "a1", "type": "article"}}, text="",
+                               baseline=[(5, 5), (10, 5)])
+    tl2 = PageObjects.TextLine("id", {"structure": {"id": "a2", "type": "article"}}, text="",
+                               baseline=[(80, 85), (90, 94)])
+    tl3 = PageObjects.TextLine("id", {"structure": {"id": "a3", "type": "article"}}, text="",
+                               baseline=[(80, 85), (80, 94)])
+    # tl3 = PageObjects.TextLine("id", {"structure": {"id": "a3", "type": "article"}}, text="", baseline=[(1000, 1000), (1500, 1500)])
+    # tl1 = PageObjects.TextLine("id", {"structure": {"id": "a1", "type": "article"}}, text="", baseline=[(2, 2), (3, 3)])
+    # tl2 = PageObjects.TextLine("id", {"structure": {"id": "a2", "type": "article"}}, text="", baseline=[(2, 7), (7, 5)])
 
-    p.add_point(7, 1)
-    print("(", p.bounds.x, ", ", p.bounds.y, ")", "  width = ", p.bounds.width, "  height = ", p.bounds.height, "\n")
-
-    r = Rectangle(1, 2, 5, 3)
-
-    int_r = r.intersection(Rectangle(1, 2, 0, 0))
-    print("(", int_r.x, ", ", int_r.y, ")", "  width = ", int_r.width, "  height = ", int_r.height)
+    ar = ArticleRectangle(0, 0, 3001, 3001, [tl1, tl2, tl3])
+    ars = ar.create_subregions()
+    print("=======")
+    for ar_ in ars:
+        # print(ar_.x, ar_.y, ar_.width, ar_.height)
+        # print(ar_.textlines.baseline.to_string())
+        print(ar_.a_ids, ar_.x, ar_.y, ar_.width, ar_.height)
