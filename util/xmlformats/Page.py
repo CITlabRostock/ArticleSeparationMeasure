@@ -410,7 +410,7 @@ class Page:
     def get_print_space_coords(self):
         ps_nd = self.get_child_by_name(self.page_doc, self.sPRINT_SPACE)
 
-        if len(ps_nd != 1):
+        if len(ps_nd) != 1:
             print(f"Expected exactly one {self.sPRINT_SPACE} node, but got {len(ps_nd)}.")
             exit(1)
 
@@ -418,7 +418,7 @@ class Page:
 
         # we assume that the PrintSpace is given as a rectangle, thus having four coordinates
         ps_coords = self.get_point_list(self.get_child_by_name(ps_nd, self.sCOORDS)[0].get(self.sPOINTS_ATTR))
-        if len(ps_coords != 4):
+        if len(ps_coords) != 4:
             print(f"Expected exactly four rectangle coordinates, but got {len(ps_coords)}.")
             exit(1)
 
