@@ -4,7 +4,6 @@ import sys
 
 # rectangle class
 import numpy as np
-from util.xmlformats import PageObjects
 
 
 class Rectangle(object):
@@ -249,14 +248,14 @@ class Polygon(object):
 
         return self.bounds.get_bounds()
 
+from util.xmlformats import PageObjects
 
 class ArticleRectangle(Rectangle):
 
     def __init__(self, x=0, y=0, width=0, height=0, textlines=None, article_ids=None):
         super().__init__(x, y, width, height)
         self.textlines = textlines
-        if article_ids is None:
-            # article_ids = set()
+        if article_ids is None and textlines is not None:
             self.a_ids = self.get_articles()
         else:
             self.a_ids = article_ids
@@ -319,8 +318,6 @@ class ArticleRectangle(Rectangle):
         height1 = self.height // 2
         height2 = self.height - height1
 
-        print(self.x, self.y, width1, height1, width2, height2)
-
         #########################
         #           #           #
         #     I     #     II    #
@@ -372,7 +369,7 @@ class ArticleRectangle(Rectangle):
 
         # run create_subregions on Rectangles that contain more than one TextLine object
         for a_rect in [a_rect1, a_rect2, a_rect3, a_rect4]:
-            if len(a_rect.a_ids) > 1:
+            if len(a_rect.a_ids) > 1:  # or a_rect.width > 200:
                 a_rect.create_subregions(ar_list)
             else:
                 ar_list.append(a_rect)
@@ -415,29 +412,10 @@ def check_intersection(line1, line2):
         return None
 
     [s, t_neg] = np.linalg.inv(A).dot(b)
-    # print(f"s: {s} and t: {-t_neg}")
-    # print(0 < s < 1 and 0 < -t_neg < 1)
-    if not (0 < s < 1 and 0 < -t_neg < 1):
+    if not (0 <= s <= 1 and 0 <= -t_neg <= 1):
         return None
 
     return [x_points2[0] + s * x_points2[1], y_points2[0] + s * y_points2[1]]
-
-    # # if x_points1[0] == x_points2[0] and y_points1[0] == y_points2[0]:
-    # #     return [x_points1[0], y_points1[0]]
-    #
-    # det = x_points2[1] * y_points1[1] - x_points1[1] * y_points2[1]
-    #
-    # # the line segments are parallel
-    # if det == 0:
-    #     return None
-    #
-    # s = (y_points1[1] * (x_points1[0] - x_points2[0]) - x_points1[1] * (y_points1[0] - y_points2[0])) / det
-    # t = (y_points2[1] * (x_points1[0] - x_points2[0]) - x_points2[1] * (y_points1[0] - y_points2[0])) / det
-    #
-    # if not (0 <= s <= 1 and 0 <= t <= 1):
-    #     return None
-    #
-    # return [x_points2[0] + s * x_points2[1], y_points2[0] + s * y_points2[1]]
 
 
 if __name__ == '__main__':
