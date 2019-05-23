@@ -281,7 +281,7 @@ class ArticleRectangle(Rectangle):
             if max(line_segment_bl[0]) <= x or min(line_segment_bl[0]) >= x + width or max(
                     line_segment_bl[1]) <= y or min(
                 line_segment_bl[1]) >= y + height:
-                return False
+                continue
 
             # The baseline segment lies inside the rectangle
             if min(line_segment_bl[0]) >= x and max(line_segment_bl[0]) <= x + width and min(

@@ -412,15 +412,23 @@ class Page:
 
         if len(ps_nd) != 1:
             print(f"Expected exactly one {self.sPRINT_SPACE} node, but got {len(ps_nd)}.")
-            exit(1)
+            # exit(1)
+            print(f"Fallback to image size.")
+            page_nd = self.get_child_by_name(self.page_doc, "Page")[0]
+            img_width = int(page_nd.get("imageWidth"))
+            img_height = int(page_nd.get("imageHeight"))
 
-        ps_nd = ps_nd[0]
+            ps_coords = [(0, 0), (img_width, 0), (img_width, img_height), (0, img_height)]
+            print(ps_coords)
 
-        # we assume that the PrintSpace is given as a rectangle, thus having four coordinates
-        ps_coords = self.get_point_list(self.get_child_by_name(ps_nd, self.sCOORDS)[0].get(self.sPOINTS_ATTR))
-        if len(ps_coords) != 4:
-            print(f"Expected exactly four rectangle coordinates, but got {len(ps_coords)}.")
-            exit(1)
+        else:
+            ps_nd = ps_nd[0]
+
+            # we assume that the PrintSpace is given as a rectangle, thus having four coordinates
+            ps_coords = self.get_point_list(self.get_child_by_name(ps_nd, self.sCOORDS)[0].get(self.sPOINTS_ATTR))
+            if len(ps_coords) != 4:
+                print(f"Expected exactly four rectangle coordinates, but got {len(ps_coords)}.")
+                exit(1)
 
         return ps_coords
 
