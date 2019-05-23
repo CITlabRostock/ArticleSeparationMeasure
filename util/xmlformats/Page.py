@@ -407,6 +407,13 @@ class Page:
 
         return article_dict
 
+    def get_image_resolution(self):
+        page_nd = self.get_child_by_name(self.page_doc, "Page")[0]
+        img_width = int(page_nd.get("imageWidth"))
+        img_height = int(page_nd.get("imageHeight"))
+
+        return img_width, img_height
+
     def get_print_space_coords(self):
         ps_nd = self.get_child_by_name(self.page_doc, self.sPRINT_SPACE)
 
@@ -414,9 +421,7 @@ class Page:
             print(f"Expected exactly one {self.sPRINT_SPACE} node, but got {len(ps_nd)}.")
             # exit(1)
             print(f"Fallback to image size.")
-            page_nd = self.get_child_by_name(self.page_doc, "Page")[0]
-            img_width = int(page_nd.get("imageWidth"))
-            img_height = int(page_nd.get("imageHeight"))
+            img_width, img_height = self.get_image_resolution()
 
             ps_coords = [(0, 0), (img_width, 0), (img_width, img_height), (0, img_height)]
             print(ps_coords)
