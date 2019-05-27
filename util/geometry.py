@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 
 import sys
-
-# rectangle class
 import numpy as np
+from util.xmlformats import *
 
 
 class Rectangle(object):
@@ -133,7 +132,6 @@ class Rectangle(object):
         return Rectangle(tx1, ty1, width=tx2, height=ty2)
 
 
-# polygon class
 class Polygon(object):
 
     def __init__(self, x_points=None, y_points=None, n_points=0):
@@ -248,12 +246,12 @@ class Polygon(object):
 
         return self.bounds.get_bounds()
 
-from util.xmlformats import PageObjects
 
 class ArticleRectangle(Rectangle):
 
     def __init__(self, x=0, y=0, width=0, height=0, textlines=None, article_ids=None):
         super().__init__(x, y, width, height)
+
         self.textlines = textlines
         if article_ids is None and textlines is not None:
             self.a_ids = self.get_articles()
@@ -263,14 +261,15 @@ class ArticleRectangle(Rectangle):
     def get_articles(self):
         # traverse the baselines/textlines and check the article id
         article_set = set()
+
         for tl in self.textlines:
             article_set.add(tl.get_article_id())
 
         return article_set
 
     def contains_polygon(self, polygon, x, y, width, height):
-        """Checks if a polygon intersects with (or lies within) a (sub)rectangle given by the coordinates x,y
-        (upper left point) and the width and height of the rectangle."""
+        """ Checks if a polygon intersects with (or lies within) a (sub)rectangle given by the coordinates x,y
+        (upper left point) and the width and height of the rectangle. """
 
         # iterate over the points of the polygon
         for i in range(polygon.n_points - 1):
@@ -278,8 +277,7 @@ class ArticleRectangle(Rectangle):
 
             # The baseline segment lies outside the rectangle completely to the right/left/top/bottom
             if max(line_segment_bl[0]) <= x or min(line_segment_bl[0]) >= x + width or max(
-                    line_segment_bl[1]) <= y or min(
-                line_segment_bl[1]) >= y + height:
+                    line_segment_bl[1]) <= y or min(line_segment_bl[1]) >= y + height:
                 continue
 
             # The baseline segment lies inside the rectangle
@@ -377,45 +375,64 @@ class ArticleRectangle(Rectangle):
         return ar_list
 
 
-def check_intersection(line1, line2):
-    """Checks if two line segments `line1` and `line2` intersect. If they do so, the function returns the intersection point as [x,y]
-    coordinate, otherwise `None`.
+def check_intersection(line_1, line_2):
+    """ Checks if two line segments `line1` and `line2` intersect. If they do so, the function returns the intersection
+    point as [x,y] coordinate (special case for overlapping ["inf", "inf"]), otherwise `None`.
 
-    :param line1: list containing the x- and y-coordinates as [[x1,x2],[y1,y2]]
-    :param line2: list containing the x- and y-coordinates as [[x1,x2],[y1,y2]]
+    :param line_1: list containing the x- and y-coordinates as [[x1,x2],[y1,y2]]
+    :param line_2: list containing the x- and y-coordinates as [[x1,x2],[y1,y2]]
     :return: intersection point [x,y] if the line segments intersect, None otherwise
     """
-    x_points1_, y_points1_ = line1
-    x_points2_, y_points2_ = line2
+    x_points1, y_points1 = line_1
+    x_points2, y_points2 = line_2
 
-    # consider parametric form
-    x_points1 = [x_points1_[0], x_points1_[1] - x_points1_[0]]
-    x_points2 = [x_points2_[0], x_points2_[1] - x_points2_[0]]
-    y_points1 = [y_points1_[0], y_points1_[1] - y_points1_[0]]
-    y_points2 = [y_points2_[0], y_points2_[1] - y_points2_[0]]
+    # consider vector form (us + s*vs = u + t*v)
+    us = [x_points1[0], y_points1[0]]
+    vs = [x_points1[1] - x_points1[0], y_points1[1] - y_points1[0]]
 
-    A = np.array([[x_points2[1], x_points1[1]], [y_points2[1], y_points1[1]]])
-    b = np.array([x_points1[0] - x_points2[0], y_points1[0] - y_points2[0]])
+    u = [x_points2[0], y_points2[0]]
+    v = [x_points2[1] - x_points2[0], y_points2[1] - y_points2[0]]
+
+    A = np.array([vs, [-v[0], -v[1]]]).transpose()
+    b = np.array([u[0] - us[0], u[1] - us[1]])
 
     rank_A = np.linalg.matrix_rank(A)
     rank_Ab = np.linalg.matrix_rank(np.c_[A, b])
 
-    # no solution -> parallel
+    # no solution => parallel
     if rank_A != rank_Ab:
         return None
 
-    # infinite solutions -> one line is the multiple of the other
+    # infinite solutions => one line is the multiple of the other
     if rank_A == rank_Ab == 1:
-        # Need to check if there is an overlap
+        # check if there is an overlap
+        # us + s*vs = u
+        s1 = (u[0] - us[0]) / vs[0]
+        s2 = (u[1] - us[1]) / vs[1]
+        if s1 == s2:
+            if 0 < s1 < 1:
+                return ["inf", "inf"]
+            elif s1 == 0 or s1 == 1:
+                return [us[0] + s1 * vs[0], us[1] + s1 * vs[1]]
+
+        # us + s*vs = v
+        s1 = (v[0] - us[0]) / vs[0]
+        s2 = (v[1] - us[1]) / vs[1]
+        if s1 == s2:
+            if 0 < s1 < 1:
+                return ["inf", "inf"]
+            elif s1 == 0 or s1 == 1:
+                return [us[0] + s1 * vs[0], us[1] + s1 * vs[1]]
 
         # otherwise there is no overlap and no intersection
         return None
 
-    [s, t_neg] = np.linalg.inv(A).dot(b)
-    if not (0 <= s <= 1 and 0 <= -t_neg <= 1):
+    [s, t] = np.linalg.inv(A).dot(b)
+
+    if not (0 <= s <= 1 and 0 <= t <= 1):
         return None
 
-    return [x_points2[0] + s * x_points2[1], y_points2[0] + s * y_points2[1]]
+    return [us[0] + s * vs[0], us[1] + s * vs[1]]
 
 
 if __name__ == '__main__':
@@ -435,43 +452,25 @@ if __name__ == '__main__':
     # int_r = r.intersection(Rectangle(1, 2, 0, 0))
     # print("(", int_r.x, ", ", int_r.y, ")", "  width = ", int_r.width, "  height = ", int_r.height)
 
-    # line1 = [[0, 0], [0, 2]]
-    # line2 = [[2, 2], [-1, 2]]
-    #
-    # line1 = [[0, 0], [0, 2]]
-    # line2 = [[1, 3], [1, 2]]
-    #
-    # line1 = [[0, 0], [0, 2]]
-    # line2 = [[-1, 3], [0, 2]]
-    #
-    # line1 = [[0, 0], [0, 2]]
-    # line2 = [[0, 2], [0, 2]]
-    #
-    # lineR1 = [[0, 3], [3, 3]]
-    # lineR2 = [[3, 3], [3, 6]]
-    # lineR3 = [[0, 3], [6, 6]]
-    # lineR4 = [[0, 0], [3, 6]]
-    # lineB = [[2, 7], [7, 5]]
-    #
-    # print(check_intersection(lineR1, lineB))
-    # print(check_intersection(lineR2, lineB))
-    # print(check_intersection(lineR3, lineB))
-    # print(check_intersection(lineR4, lineB))
+    line1 = [[0, 0], [0, 2]]
+    line2 = [[2, 2], [-1, 2]]
 
-    tl1 = PageObjects.TextLine("id", {"structure": {"id": "a1", "type": "article"}}, text="",
-                               baseline=[(5, 5), (10, 5)])
-    tl2 = PageObjects.TextLine("id", {"structure": {"id": "a2", "type": "article"}}, text="",
-                               baseline=[(80, 85), (90, 94)])
-    tl3 = PageObjects.TextLine("id", {"structure": {"id": "a3", "type": "article"}}, text="",
-                               baseline=[(80, 85), (80, 94)])
-    # tl3 = PageObjects.TextLine("id", {"structure": {"id": "a3", "type": "article"}}, text="", baseline=[(1000, 1000), (1500, 1500)])
-    # tl1 = PageObjects.TextLine("id", {"structure": {"id": "a1", "type": "article"}}, text="", baseline=[(2, 2), (3, 3)])
-    # tl2 = PageObjects.TextLine("id", {"structure": {"id": "a2", "type": "article"}}, text="", baseline=[(2, 7), (7, 5)])
+    line1 = [[0, 0], [0, 2]]
+    line2 = [[1, 3], [1, 2]]
 
-    ar = ArticleRectangle(0, 0, 3001, 3001, [tl1, tl2, tl3])
-    ars = ar.create_subregions()
-    print("=======")
-    for ar_ in ars:
-        # print(ar_.x, ar_.y, ar_.width, ar_.height)
-        # print(ar_.textlines.baseline.to_string())
-        print(ar_.a_ids, ar_.x, ar_.y, ar_.width, ar_.height)
+    line1 = [[0, 0], [0, 2]]
+    line2 = [[-1, 3], [0, 2]]
+
+    line1 = [[0, 0], [0, 2]]
+    line2 = [[0, 2], [0, 2]]
+
+    lineR1 = [[0, 3], [3, 3]]
+    lineR2 = [[3, 3], [3, 6]]
+    lineR3 = [[0, 3], [6, 6]]
+    lineR4 = [[0, 0], [3, 6]]
+    lineB = [[2, 7], [7, 5]]
+
+    print(check_intersection(lineR1, lineB))
+    print(check_intersection(lineR2, lineB))
+    print(check_intersection(lineR3, lineB))
+    print(check_intersection(lineR4, lineB))
