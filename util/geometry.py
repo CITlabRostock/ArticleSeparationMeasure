@@ -4,7 +4,7 @@ import sys
 
 # rectangle class
 import numpy as np
-from util.xmlformats import PageObjects
+import functools
 
 
 class Rectangle(object):
@@ -33,6 +33,17 @@ class Rectangle(object):
         :return: (Rectangle) bounding rectangle
         """
         return Rectangle(self.x, self.y, width=self.width, height=self.height)
+
+    def get_vertices(self):
+        """ Get the four vertices of this rectangle.
+
+        :return: List of four tuples with x- and y-coordinates
+        """
+        v1 = (self.x, self.y)
+        v2 = (self.x + self.width, self.y)
+        v3 = (self.x + self.width, self.y + self.height)
+        v4 = (self.x, self.y + self.height)
+        return [v1, v2, v3, v4]
 
     def translate(self, dx, dy):
         """ Translates this rectangle the indicated distance, to the right along the x coordinate axis, and downward
@@ -250,12 +261,13 @@ class Polygon(object):
         return self.bounds.get_bounds()
 
 
+from util.xmlformats import PageObjects
 class ArticleRectangle(Rectangle):
 
     def __init__(self, x=0, y=0, width=0, height=0, textlines=None, article_ids=None):
         super().__init__(x, y, width, height)
         self.textlines = textlines
-        if article_ids is None:
+        if article_ids is None and textlines is not None:
             # article_ids = set()
             self.a_ids = self.get_articles()
         else:
@@ -318,8 +330,6 @@ class ArticleRectangle(Rectangle):
         width2 = self.width - width1
         height1 = self.height // 2
         height2 = self.height - height1
-
-        print(self.x, self.y, width1, height1, width2, height2)
 
         #########################
         #           #           #
@@ -438,6 +448,152 @@ def check_intersection(line1, line2):
     #     return None
     #
     # return [x_points2[0] + s * x_points2[1], y_points2[0] + s * y_points2[1]]
+
+
+def ortho_connect(rectangles):
+    """
+    2D Orthogonal Connect-The-Dots, see
+    http://cs.smith.edu/~jorourke/Papers/OrthoConnect.pdf
+
+    :param rectangles: list of Rectangle objects
+    :return: list of surrounding polygons over rectangles
+    """
+    assert type(rectangles) == list
+    assert all([isinstance(rect, Rectangle) for rect in rectangles])
+
+    # Go over vertices of each rectangle and only keep shared vertices
+    # if they are shared by an odd number of rectangles
+    points = set()
+    for rect in rectangles:
+        for pt in rect.get_vertices():
+            if pt in points:
+                points.remove(pt)
+            else:
+                points.add(pt)
+    points = list(points)
+
+    def y_then_x(a, b):
+        if a[1] < b[1] or (a[1] == b[1] and a[0] < b[0]):
+            return -1
+        elif a == b:
+            return 0
+        else:
+            return 1
+
+    # print(points)
+    # print(sorted(points))
+    # print(sorted(points, key=lambda x: x[1]))
+    # print(sorted(sorted(points, key=lambda x: x[0]), key=lambda x: x[1]))
+    # print(sorted(points, key=functools.cmp_to_key(y_then_x)))
+
+    sort_x = sorted(points)
+    sort_y = sorted(points, key=functools.cmp_to_key(y_then_x))
+
+    edges_h = {}
+    edges_v = {}
+
+    # go over rows (same y-coordinate) and draw edges between vertices 2i and 2i+1
+    i = 0
+    while i < len(points):
+        curr_y = sort_y[i][1]
+        while i < len(points) and sort_y[i][1] == curr_y:
+            edges_h[sort_y[i]] = sort_y[i+1]
+            edges_h[sort_y[i+1]] = sort_y[i]
+            i += 2
+
+    # go over columns (same x-coordinate) and draw edges between vertices 2i and 2i+1
+    i = 0
+    while i < len(points):
+        curr_x = sort_x[i][0]
+        while i < len(points) and sort_x[i][0] == curr_x:
+            edges_v[sort_x[i]] = sort_x[i + 1]
+            edges_v[sort_x[i + 1]] = sort_x[i]
+            i += 2
+
+    # Get all the polygons
+    p = []
+    while edges_h:
+        # We can start with any point
+        polygon = [(edges_h.popitem()[0], 0)]
+        while True:
+            curr, e = polygon[-1]
+            if e == 0:
+                next_vertex = edges_v.pop(curr)
+                polygon.append((next_vertex, 1))
+            else:
+                next_vertex = edges_h.pop(curr)
+                polygon.append((next_vertex, 0))
+            if polygon[-1] == polygon[0]:
+                # Closed polygon
+                polygon.pop()
+                break
+        # Remove implementation-markers from the polygon
+        poly = [point for point, _ in polygon]
+        for vertex in poly:
+            if vertex in edges_h:
+                edges_h.pop(vertex)
+            if vertex in edges_v:
+                edges_v.pop(vertex)
+
+        p.append(poly)
+
+    def point_in_poly(poly, point):
+        """
+        Check if point is contained in polygon.
+        Run a semi-infinite ray horizontally (increasing x, fixed y) out from the test point,
+        and count how many edges it crosses. At each crossing, the ray switches between inside and outside.
+        This is called the Jordan curve theorem.
+        :param poly: list of points, represented as tuples with x- and y-coordinates
+        :param point: tuple with x- and y-coordinates
+        :return: bool, whether or not the point is contained in the polygon
+        """
+        # TODO: Do boundary check beforehand? (Does this improve performance?)
+        is_inside = False
+        point_x = point[0]
+        point_y = point[1]
+        for i in range(len(poly)):
+            if (poly[i][1] > point_y) is not (poly[i-1][1] > point_y):
+                if point_x < (poly[i-1][0] - poly[i][0]) * (point_y - poly[i][1]) / (poly[i-1][1] - poly[i][1]) + poly[i][0]:
+                    is_inside = not is_inside
+        return is_inside
+
+    def point_in_polys(polys, point):
+        """
+        Check if point is contained in a list of polygons
+        :param polys: list of polygons (where a polygon is a list of points, i.e. list of tuples)
+        :param point: tuple with x- and y-coordinates
+        :return: bool, whether or not the point is contained in any of the polygons
+        """
+        for poly in polys:
+            if point_in_poly(poly, point):
+                return True
+        return False
+
+    # Remove polygons contained in other polygons
+    final_polygons = p.copy()
+    if len(p) > 1:
+        for poly in p:
+            tmp_polys = p.copy()
+            tmp_polys.remove(poly)
+            # Only need to check if one point of the polygon is contained in another polygon
+            # (By construction, the entire polygon is contained then)
+            if point_in_polys(tmp_polys, poly[0]):
+                final_polygons.remove(poly)
+
+    return final_polygons
+
+
+def get_article_surrounding_polygons(ar_dict):
+    """
+    Create surrounding polygons over a sets of rectangles, belonging to different article_ids.
+    :param ar_dict: dict (keys = article_id, values = corresponding rectangles)
+    :return: dict (keys = article_id, values = corresponding surrounding polygons)
+    """
+    asp_dict = {}
+    for id in ar_dict:
+        sp = ortho_connect(ar_dict[id])
+        asp_dict[id] = sp
+    return asp_dict
 
 
 if __name__ == '__main__':
