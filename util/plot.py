@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+import re
 
 from util.geometry import Polygon
 # import util.PAGE as PAGE
@@ -156,6 +157,10 @@ def plot_ax(ax=None, img_path='', baselines_list=[], surr_polys=[], bcolors=[], 
         fig.canvas.set_window_title(img_path)
     views = {}
 
+    # Maximize plotting window
+    mng = plt.get_current_fig_manager()
+    mng.resize(*mng.window.maxsize())
+
     try:
         img_plot = add_image(ax, img_path)
         views.update({"image": img_plot})
@@ -195,7 +200,8 @@ def plot_ax(ax=None, img_path='', baselines_list=[], surr_polys=[], bcolors=[], 
     # Add article ids to the legend
     # TODO: Sometimes there are too many articles to display -> possibility to scroll?!
     article_collection = [coll for coll in ax.collections if coll.get_label().startswith("a-id")]
-    ax.legend(article_collection, [coll.get_label() for coll in article_collection], bbox_to_anchor=[1.0, 1.0], loc="upper left")
+    ax.legend(article_collection, [coll.get_label() for coll in article_collection], bbox_to_anchor=[1.0, 1.0],
+              loc="upper left")
     # ax.legend(ax.collections, ["a-id " + str(i) for i in range(len(ax.collections))], loc="upper left", bbox_to_anchor=(1.1, 1.05))
 
     # ax.autoscale_view()
@@ -240,11 +246,11 @@ def plot_pagexml(page, path_to_img, ax=None, plot_article=True):
 
     # get surrounding polygons
     textlines = page.get_textlines()
-    surr_polys = [tl.surr_p.points_list for tl in textlines if tl]
+    surr_polys = [tl.surr_p.points_list for tl in textlines if (tl and tl.surr_p.points_list)]
 
-    # Maximize plotting window
-    mng = plt.get_current_fig_manager()
-    mng.resize(*mng.window.maxsize())
+    # # Maximize plotting window
+    # mng = plt.get_current_fig_manager()
+    # mng.resize(*mng.window.maxsize())
 
     plot_ax(ax, path_to_img, blines_list, surr_polys, bcolors, region_list, rcolors)
 
@@ -348,6 +354,33 @@ def plot_list(img_lst, hyp_lst, gt_lst=None, plot_article=True, force_equal_name
                     plt.show()
 
 
+def plot_folder(path_to_folder, plot_article=True):
+    try:
+        _, dirnames, filenames = next(os.walk(path_to_folder))
+    except StopIteration:
+        print(f"No directory {path_to_folder} found.")
+        exit(1)
+    if not any(fname.endswith((".jpg", ".png", ".tif")) for fname in filenames):
+        print("There are no images (jpg, png, tif) in this directory, choose another folder.")
+        exit(1)
+    page_folder = "page"
+    if not any(page_folder == dirname.lower() for dirname in dirnames):
+        print("There is no 'page' subdirectory in this directory, choose another folder.")
+        page_folder = None
+        # exit(1)
+
+    # Iterate over the images
+    for img_fname in [img_fname for img_fname in filenames if img_fname.endswith((".jpg", ".png", ".tif"))]:
+        path_to_img = os.path.join(path_to_folder, img_fname)
+        path_to_page = None
+        if page_folder:
+            path_to_page = os.path.join(path_to_folder, page_folder, re.sub(r"\..*$", ".xml", img_fname))
+
+        # fig, ax = plt.subplots()
+        plot_pagexml(path_to_page, path_to_img, ax=None, plot_article=plot_article)
+        plt.show()
+
+
 if __name__ == '__main__':
     # path_to_img = "./test/resources/newseye_as_test_data/image_files/0033_nzz_18120804_0_0_a1_p1_1.tif"
     # path_to_xml = "./test/resources/newseye_as_test_data/xml_files_hy/0033_nzz_18120804_0_0_a1_p1_1.xml"
@@ -355,8 +388,12 @@ if __name__ == '__main__':
     # plot_pagexml(Page(path_to_xml), path_to_img, plot_article=True)
     # plt.show()
 
-    path_to_img_lst = "./test/resources/newseye_as_test_data/image_paths.lst"
-    path_to_hyp_lst = "./test/resources/newseye_as_test_data/hy_xml_paths.lst"
-    path_to_gt_lst = "./test/resources/newseye_as_test_data/gt_xml_paths.lst"
+    # path_to_img_lst = "./test/resources/newseye_as_test_data/image_paths.lst"
+    # path_to_hyp_lst = "./test/resources/newseye_as_test_data/hy_xml_paths.lst"
+    # path_to_gt_lst = "./test/resources/newseye_as_test_data/gt_xml_paths.lst"
+    #
+    # plot_list(path_to_img_lst, path_to_hyp_lst, None, plot_article=True, force_equal_names=True)
 
-    plot_list(path_to_img_lst, path_to_hyp_lst, None, plot_article=True, force_equal_names=True)
+    # path_to_folder = "/home/max/data/as/NewsEye_ONB_Data/136358/ONB_aze_18950706"
+    path_to_folder = "/home/max/data/as/NewsEye_ONB_Data/140878/ONB_krz_19330701"
+    plot_folder(path_to_folder)

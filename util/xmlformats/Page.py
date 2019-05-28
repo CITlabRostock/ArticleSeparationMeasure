@@ -376,10 +376,13 @@ class Page:
             lnd_points = data.xpath("(.//@points)[1]")
             s_points = lnd_points[0]
             ls_pair = s_points.split(' ')
-        l_xy = list()
-        for s_pair in ls_pair:  # s_pair = 'x,y'
-            (sx, sy) = s_pair.split(',')
-            l_xy.append((int(sx), int(sy)))
+        try:
+            l_xy = list()
+            for s_pair in ls_pair:  # s_pair = 'x,y'
+                (sx, sy) = s_pair.split(',')
+                l_xy.append((int(sx), int(sy)))
+        except ValueError:
+            return None
         return l_xy
 
     @staticmethod
@@ -407,20 +410,33 @@ class Page:
 
         return article_dict
 
+    def get_image_resolution(self):
+        page_nd = self.get_child_by_name(self.page_doc, "Page")[0]
+        img_width = int(page_nd.get("imageWidth"))
+        img_height = int(page_nd.get("imageHeight"))
+
+        return img_width, img_height
+
     def get_print_space_coords(self):
         ps_nd = self.get_child_by_name(self.page_doc, self.sPRINT_SPACE)
 
         if len(ps_nd) != 1:
             print(f"Expected exactly one {self.sPRINT_SPACE} node, but got {len(ps_nd)}.")
-            exit(1)
+            # exit(1)
+            print(f"Fallback to image size.")
+            img_width, img_height = self.get_image_resolution()
 
-        ps_nd = ps_nd[0]
+            ps_coords = [(0, 0), (img_width, 0), (img_width, img_height), (0, img_height)]
+            print(ps_coords)
 
-        # we assume that the PrintSpace is given as a rectangle, thus having four coordinates
-        ps_coords = self.get_point_list(self.get_child_by_name(ps_nd, self.sCOORDS)[0].get(self.sPOINTS_ATTR))
-        if len(ps_coords) != 4:
-            print(f"Expected exactly four rectangle coordinates, but got {len(ps_coords)}.")
-            exit(1)
+        else:
+            ps_nd = ps_nd[0]
+
+            # we assume that the PrintSpace is given as a rectangle, thus having four coordinates
+            ps_coords = self.get_point_list(self.get_child_by_name(ps_nd, self.sCOORDS)[0].get(self.sPOINTS_ATTR))
+            if len(ps_coords) != 4:
+                print(f"Expected exactly four rectangle coordinates, but got {len(ps_coords)}.")
+                exit(1)
 
         return ps_coords
 
