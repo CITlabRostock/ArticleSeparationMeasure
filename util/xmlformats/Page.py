@@ -376,10 +376,13 @@ class Page:
             lnd_points = data.xpath("(.//@points)[1]")
             s_points = lnd_points[0]
             ls_pair = s_points.split(' ')
-        l_xy = list()
-        for s_pair in ls_pair:  # s_pair = 'x,y'
-            (sx, sy) = s_pair.split(',')
-            l_xy.append((int(sx), int(sy)))
+        try:
+            l_xy = list()
+            for s_pair in ls_pair:  # s_pair = 'x,y'
+                (sx, sy) = s_pair.split(',')
+                l_xy.append((int(sx), int(sy)))
+        except ValueError:
+            return None
         return l_xy
 
     @staticmethod
